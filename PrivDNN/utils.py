@@ -89,12 +89,6 @@ def get_argparser():
         help="json file of the selected neurons in every layer",
     )
     parser.add_argument(
-        "--selected_layers_file",
-        type=str,
-        default=None,
-        help="json file of the selected neurons count in every layer",
-    )
-    parser.add_argument(
         "--initial_layer_index",
         type=int,
         default=None,
@@ -131,34 +125,10 @@ def get_argparser():
         help="percent factor controls how many neurons we should select in a layer",
     )
     parser.add_argument(
-        "--alpha",
-        type=float,
-        default=None,
-        help="alpha controls the weight of separating accuracy",
-    )
-    parser.add_argument(
-        "--beta",
-        type=float,
-        default=None,
-        help="beta controls the weight of accuracy difference",
-    )
-    parser.add_argument(
         "--accuracy_base",
         type=float,
         default=None,
         help="accuracy base controls the expected separating accuracy",
-    )
-    parser.add_argument(
-        "--difference_base",
-        type=float,
-        default=None,
-        help="diff base controls the expected difference between the separating accuracy and removing accuracy",
-    )
-    parser.add_argument(
-        "--random_selection_times",
-        type=int,
-        default=None,
-        help="random selection times controls the repeating times of select function when the algorithm is random selection",
     )
     parser.add_argument(
         "--greedy_step",
@@ -184,23 +154,8 @@ def get_argparser():
     return args
 
 
-def write_content_to_file(content, file_path):
-    with open(file_path, "wb") as file:
-        pickle.dump(content, file)
-
-
-def read_content_from_file(file_path):
-    with open(file_path, "rb") as file:
-        content = pickle.load(file)
-        return content
-
-
-def is_folder_empty(folder_path):
-    files_list = os.listdir(folder_path)
-    return len(files_list) == 0
-
-
 def get_model_path(args, dataloaders, percent=100):
+    # dataset_epoch_batchsize_percent.pth
     train_batch_size = dataloaders["train"].batch_size
     model_path = f"../saved_models/{dataloaders['name']}/{dataloaders['name']}_{dataloaders['epoch']}_{train_batch_size}_{percent}.pth"
 

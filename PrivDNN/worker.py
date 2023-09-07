@@ -510,8 +510,6 @@ def select_neurons_v1(args, logger, model, dataloaders):
     encrypt_layers_count = args.encrypt_layers_count
 
     selected_neurons = {}
-    for i in range(first_layer_index):
-        selected_neurons[i + 1] = []
 
     for i in range(first_layer_index, first_layer_index + encrypt_layers_count):
         if args.percent_factor is not None:
@@ -544,116 +542,6 @@ def get_neuron_point(args, separating_accuracy, removing_accuracy):
     )
 
     return point
-
-
-"""def get_neuron_point(args, separating_accuracy, removing_accuracy, no_penalty=True):
-    point = 0
-    if no_penalty:
-        point = args.alpha * (separating_accuracy - args.accuracy_base) + args.beta * (
-            separating_accuracy - removing_accuracy
-        )
-    else:
-        separating_accuracy_factor = (
-            1 if separating_accuracy > args.accuracy_base else 10 * args.alpha
-        )
-        difference_factor = (
-            math.log(
-                separating_accuracy - removing_accuracy,
-                args.difference_base,
-            )
-            if separating_accuracy > removing_accuracy
-            else -10 * args.beta
-        )
-
-        point += (
-            args.alpha
-            * (separating_accuracy - args.accuracy_base)
-            * separating_accuracy_factor
-        )
-        point += args.beta * args.difference_base * difference_factor
-
-    return round(point, 2)"""
-
-
-def select_neurons_v1_multi(args, logger, model, dataloaders):
-    # random
-    layers_list = model.get_layers_list()
-    first_layer_index = args.initial_layer_index  # start from 0
-    encrypt_layers_count = args.encrypt_layers_count
-
-    selections = {}
-    for i in range(args.random_selection_times):
-        selected_neurons = {}
-        for i in range(first_layer_index):
-            selected_neurons[i + 1] = []
-
-        select_limit = args.initial_layer_neurons
-        for i in range(first_layer_index, first_layer_index + encrypt_layers_count):
-            if args.percent_factor is not None:
-                select_limit = max(
-                    1,
-                    int(
-                        layers_list[i][0].layer.out_channels * args.percent_factor / 100
-                    ),
-                )
-
-            selected_neurons[i + 1] = random.sample(
-                range(layers_list[i][0].layer.out_channels), select_limit
-            )
-
-            if args.add_factor is not None:
-                select_limit = select_limit + args.add_factor
-            elif args.multiply_factor is not None:
-                select_limit = select_limit * args.multiply_factor
-
-        separate_accuracy, _ = get_accuracy_after_separating_neurons(
-            copy.deepcopy(model), dataloaders, copy.deepcopy(selected_neurons)
-        )
-        remove_accuracy, _ = get_accuracy_after_removing_neurons(
-            copy.deepcopy(model), dataloaders, copy.deepcopy(selected_neurons)
-        )
-        logger.info(
-            f"{dataloaders['name']}{selected_neurons}[{separate_accuracy:.2f}% - {remove_accuracy:.2f}% = {separate_accuracy - remove_accuracy:.2f}%]"
-        )
-        selections[json.dumps(selected_neurons)] = [separate_accuracy, remove_accuracy]
-
-    points = []
-    separate_accuracies = []
-    remove_accuracies = []
-    for selection in selections.items():
-        # combination format: {{combination}:[separating_accuracy, removing_accuracy]}
-        selected_neurons = selection[0]
-        accuracies = selection[1]
-        separating_accuracy = float(selection[1][0])
-        removing_accuracy = float(selection[1][1])
-
-        separate_accuracies.append(separating_accuracy)
-        remove_accuracies.append(removing_accuracy)
-
-        points.append(
-            [
-                get_neuron_point(args, separating_accuracy, removing_accuracy),
-                accuracies,
-                selected_neurons,
-            ]
-        )
-
-    average_separate_accuracy = sum(separate_accuracies) / len(separate_accuracies)
-    average_remove_accuracy = sum(remove_accuracies) / len(remove_accuracies)
-    points.sort(reverse=True)
-
-    for i in range(3):
-        logger.info(
-            f"{dataloaders['name']} max point {points[i][0]:.3f} of {args.random_selection_times} times with selected neurons {points[i][2]}:[{points[i][1][0]:.2f}% - {points[i][1][1]:.2f}% = {points[i][1][0] - points[i][1][1]:.2f}%]"
-        )
-    for i in range(3):
-        logger.info(
-            f"{dataloaders['name']} min point {points[-1-i][0]:.3f} of {args.random_selection_times} times with selected neurons {points[-1-i][2]}:[{points[-1-i][1][0]:.2f}% - {points[-1-i][1][1]:.2f}% = {points[-1-i][1][0] - points[-1-i][1][1]:.2f}%]"
-        )
-
-    logger.info(
-        f"{dataloaders['name']} average resule of {args.random_selection_times} times:[{average_separate_accuracy:.2f}% - {average_remove_accuracy:.2f}% = {average_separate_accuracy - average_remove_accuracy:.2f}%]"
-    )
 
 
 def select_neurons_v2(args, logger, model, dataloaders):
