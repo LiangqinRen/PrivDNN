@@ -65,7 +65,7 @@ def get_MNIST_dataloader(
     fhe_batch_size = 8192
     dataloaders = {
         "name": "MNIST",
-        "epoch": 64,
+        "epoch": 128,
         "train": DataLoader(train_dataset, batch_size=batch_size, shuffle=True),
         "validate": DataLoader(validate_dataset, batch_size=batch_size, shuffle=True),
         "test": DataLoader(
