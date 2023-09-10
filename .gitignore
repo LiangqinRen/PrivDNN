@@ -15,7 +15,9 @@
 /saved_models/CIFAR10/*
 !/saved_models/CIFAR10/.gitkeep
 
-/.vscode/
 /seal/data/
 /seal/output/
 /seal/src/interact/build/
+/seal/src/interact/path.h
+
+/.vscode/
