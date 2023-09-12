@@ -59,39 +59,25 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
         worker.select_neurons_v1(args, logger, trained_model, dataloaders)
         worker.select_neurons_v2(args, logger, trained_model, dataloaders)
-        logger.info(
-            f"select_neurons_v2 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v2 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
-        logger.info(
-            f"select_neurons_v3_1 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v3_1 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)
-        logger.info(
-            f"select_neurons_v3_2 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v3_2 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_neurons_v3(args, logger, trained_model, dataloaders, 3)
-        logger.info(
-            f"select_neurons_v3_3 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v3_3 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_neurons_v3(args, logger, trained_model, dataloaders, 4)
-        logger.info(
-            f"select_neurons_v3_4 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v3_4 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
-        logger.info(
-            f"select_neurons_v4_1 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v4_1 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
-        logger.info(
-            f"select_neurons_v4_2 running time: {time.time() - start_time:.3f} seconds"
-        )
+        logger.info(f"select_neurons_v4_2 costs {time.time() - start_time:.3f} seconds")
         start_time = time.time()
         worker.select_full_combination(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.recover:
@@ -101,10 +87,11 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
 
+        """trained_model.cpp_work_mode = models.CppWorkMode.separate
         logger.info("SEAL separate inference:")
         worker.test_model(logger, trained_model, dataloaders)
         logger.info(
-            f"SEAL separate inference running time: {time.time() - start_time:.3f} seconds"
+            f"SEAL separate inference costs {time.time() - start_time:.3f} seconds"
         )
 
         start_time = time.time()
@@ -112,7 +99,15 @@ if __name__ == "__main__":
         logger.info("SEAL remove inference:")
         worker.test_model(logger, trained_model, dataloaders)
         logger.info(
-            f"SEAL remove inference running time: {time.time() - start_time:.3f} seconds"
+            f"SEAL remove inference costs {time.time() - start_time:.3f} seconds"
+        )"""
+
+        start_time = time.time()
+        trained_model.cpp_work_mode = models.CppWorkMode.full
+        logger.info("SEAL full inference:")
+        worker.test_model(logger, trained_model, dataloaders)
+        logger.info(
+            f"SEAL full cipher inference costs {time.time() - start_time:.3f} seconds"
         )
     elif args.model_work_mode == utils.ModelWorkMode.something:
         trained_model = worker.load_trained_model(model_path)
@@ -120,4 +115,4 @@ if __name__ == "__main__":
         raise Exception("Unknown model_work_mode")
 
     end_time = time.time()
-    logger.info(f"Running time: {end_time - start_time:.3f} seconds")
+    logger.info(f"Program costs {end_time - start_time:.3f} seconds")

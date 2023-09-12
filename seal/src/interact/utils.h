@@ -21,11 +21,16 @@ struct MNIST_Shape {
     unordered_map<size_t, size_t> conv_bias = {{0, 0}, {1, 6}, {2, 16}};
     unordered_map<size_t, array<size_t, 4>> pool_input = {{1, {1, 6, 24, 24}}, {2, {1, 16, 8, 8}}};
     unordered_map<size_t, array<size_t, 4>> pool_output = {{1, {1, 6, 12, 12}}, {2, {1, 16, 4, 4}}};
+    unordered_map<size_t, array<size_t, 2>> fc_weight = {
+        {1, {256, 120}},
+        {2, {120, 84}},
+        {3, {84, 10}}};
+    unordered_map<size_t, size_t> fc_bias = {{1, 120}, {2, 84}, {3, 10}};
 };
 
 const static string DATA_PATH = string(PROJECT_PATH) + string("/seal/data/");
 const double SCALE = pow(2.0, 40);
-enum mode { separate_, remove_ };
+enum mode { separate_, remove_, full_ };
 
 json get_encrypted_neurons_list(string dataset);
 bool is_neuron_encrypted(json encryped_neurons, size_t round, size_t neuron);
