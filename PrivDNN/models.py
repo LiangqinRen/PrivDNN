@@ -158,10 +158,8 @@ class SplitNet(nn.Module):
                 trained_data_list.extend(torch.flatten(layer[0].layer.weight).tolist())
                 trained_data_list.extend(torch.flatten(layer[0].layer.bias).tolist())
             else:
-                # fc weight needs to be transposed
-                trained_data_list.extend(
-                    torch.flatten(torch.transpose(layer.weight, 0, 1)).tolist()
-                )
+                # fc weight needs to be transposed, but we don't do that here
+                trained_data_list.extend(torch.flatten(layer.weight).tolist())
                 trained_data_list.extend(torch.flatten(layer.bias).tolist())
 
         trained_data_pointer = (ctypes.c_double * len(trained_data_list))(
@@ -265,7 +263,6 @@ class SplitMNISTNet(SplitNet):
                 trained_data_pointer = self._get_trained_data_pointer()
                 cpp_save_trained_data(b"MNIST", trained_data_pointer)
 
-            quit()
             cpp_worker = client_library.worker
             cpp_worker.argtypes = [
                 ctypes.c_char_p,
@@ -276,7 +273,7 @@ class SplitMNISTNet(SplitNet):
 
             input_list = torch.flatten(input).tolist()
             input_pointer = (ctypes.c_double * len(input_list))(*input_list)
-            cpp_worker(
+            """cpp_worker(
                 b"MNIST",
                 input.shape[0],
                 input_pointer,
@@ -286,7 +283,7 @@ class SplitMNISTNet(SplitNet):
                 else 1
                 if self.cpp_work_mode == CppWorkMode.remove
                 else 2,
-            )
+            )"""
 
             cpp_get_result = server_library.get_result
             cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
@@ -315,13 +312,16 @@ class SplitMNISTNet(SplitNet):
                 fc2_output = F.relu(self.fc2_layer(fc1_output))
                 output = self.fc3_layer(fc2_output)
             else:
-                fc2_output = cpp_get_result(
+                output = cpp_get_result(
                     b"MNIST",
                     input.shape[0],
                     # 0 separate, 1 remove, 2 full
                     2,
                 )
-                output = self.fc3_layer(fc2_output)
+                output = [output[i] for i in range(input.shape[0] * 10)]
+                output = torch.reshape(
+                    torch.FloatTensor(output), [input.shape[0], 10]
+                ).cuda()
         else:
             raise Exception("SplitMNISTNet unknown work mode")
 

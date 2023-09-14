@@ -151,7 +151,7 @@ void save_trained_data(char *dataset, double *trained_data) {
             ++trained_data_index;
         }
         conv2_bias_outstream.close();
-        cout << __LINE__ << "|" << trained_data_index << endl;
+
         // fc1_weight
         ofstream fc1_weight_outstream;
         const string fc1_weight_path = MNIST_path + files_prefix + string("_fc1_weight");
@@ -224,7 +224,7 @@ void save_trained_data(char *dataset, double *trained_data) {
             ++trained_data_index;
         }
         fc3_weight_outstream.close();
-        cout << __LINE__ << "|" << trained_data_index << endl;
+
         // fc3_bias
         ofstream fc3_bias_outstream;
         const string fc3_bias_path = MNIST_path + files_prefix + string("_fc3_bias");
@@ -238,7 +238,6 @@ void save_trained_data(char *dataset, double *trained_data) {
             ++trained_data_index;
         }
         fc3_bias_outstream.close();
-        cout << __LINE__ << "|" << trained_data_index << endl;
     } else {
         exit(1);
     }
@@ -333,16 +332,35 @@ vector<double> read_result(
     }
 }
 
+vector<double> read_fc_result(SEALPACK &seal, array<size_t, 2> output_shape) {
+    // MNIST only
+    const string result_path = DATA_PATH + string("communication/MNIST_result");
+
+    ifstream result_stream;
+    result_stream.open(result_path, ios::in | ios::binary);
+    vector<double> output(output_shape[0] * output_shape[1]);
+    vector<double> decrypt_results(output_shape[0]);
+
+    for (size_t i = 0; i < output_shape[1]; ++i) {
+        seal.cipher_.load(seal.context_, result_stream);
+        seal.decryptor_.decrypt(seal.cipher_, seal.plain_);
+        seal.encoder_.decode(seal.plain_, decrypt_results);
+
+        for (size_t j = 0; j < output_shape[0]; ++j) {
+            output[i + j * output_shape[1]] = decrypt_results[j];
+        }
+    }
+
+    result_stream.close();
+    return output;
+}
+
 double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
     SEALPACK seal;
     auto shapes = get_MNIST_shapes(batch_size);
-    auto output_shape = shapes.pool_output[2];
-    size_t output_size = 1;
-    for (size_t i = 0; i < output_shape.size(); ++i) {
-        output_size *= output_shape[i];
-    }
+    size_t output_size = batch_size * 10;
 
-    auto final_result = read_result(string(dataset), seal, output_shape, output_size, work_mode);
+    auto final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
     double *output = new double[output_size];
     for (size_t i = 0; i < output_size; ++i) {
         output[i] = final_result[i];
