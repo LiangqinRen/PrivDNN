@@ -244,24 +244,41 @@ class SplitMNISTNet(SplitNet):
             fc2_output = F.relu(self.fc2_layer(fc1_output))
             output = self.fc3_layer(fc2_output)
         elif self.work_mode == WorkMode.cipher:
+            work_mode = int(  # 0 separate, 1 remove, 2 full
+                0
+                if self.cpp_work_mode == CppWorkMode.separate
+                else 1
+                if self.cpp_work_mode == CppWorkMode.remove
+                else 2,
+            )
+
             client_library = ctypes.CDLL("../seal/output/lib/libclient.so")
             server_library = ctypes.CDLL("../seal/output/lib/libserver.so")
 
             cpp_is_file_complete = server_library.is_file_complete
             cpp_is_file_complete.argtypes = [
                 ctypes.c_char_p,
+                ctypes.c_int,
             ]
             cpp_is_file_complete.restype = ctypes.c_bool
 
-            if not cpp_is_file_complete(b"MNIST"):
+            if not cpp_is_file_complete(
+                b"MNIST",
+                work_mode,
+            ):
                 cpp_save_trained_data = server_library.save_trained_data
                 cpp_save_trained_data.argtypes = [
                     ctypes.c_char_p,
                     ctypes.POINTER(ctypes.c_double),
+                    ctypes.c_int,
                 ]
 
                 trained_data_pointer = self._get_trained_data_pointer()
-                cpp_save_trained_data(b"MNIST", trained_data_pointer)
+                cpp_save_trained_data(
+                    b"MNIST",
+                    trained_data_pointer,
+                    work_mode,
+                )
 
             cpp_worker = client_library.worker
             cpp_worker.argtypes = [
@@ -273,17 +290,7 @@ class SplitMNISTNet(SplitNet):
 
             input_list = torch.flatten(input).tolist()
             input_pointer = (ctypes.c_double * len(input_list))(*input_list)
-            """cpp_worker(
-                b"MNIST",
-                input.shape[0],
-                input_pointer,
-                # 0 separate, 1 remove, 2 full
-                0
-                if self.cpp_work_mode == CppWorkMode.separate
-                else 1
-                if self.cpp_work_mode == CppWorkMode.remove
-                else 2,
-            )"""
+            cpp_worker(b"MNIST", input.shape[0], input_pointer, work_mode)
 
             cpp_get_result = server_library.get_result
             cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
@@ -293,20 +300,20 @@ class SplitMNISTNet(SplitNet):
                 self.cpp_work_mode == CppWorkMode.separate
                 or self.cpp_work_mode == CppWorkMode.remove
             ):
-                avgpool2_output = cpp_get_result(
+                conv2_output = cpp_get_result(
                     b"MNIST",
                     input.shape[0],
-                    # 0 separate, 1 remove, 2 full
-                    0 if self.cpp_work_mode == CppWorkMode.separate else 1,
+                    work_mode,
                 )
 
-                avgpool2_output = [
-                    avgpool2_output[i] for i in range(input.shape[0] * 256)
+                conv2_output = [
+                    conv2_output[i] for i in range(input.shape[0] * 16 * 8 * 8)
                 ]
-                avgpool2_output = torch.reshape(
-                    torch.FloatTensor(avgpool2_output), [input.shape[0], 16, 4, 4]
+                conv2_output = torch.reshape(
+                    torch.FloatTensor(conv2_output), [input.shape[0], 16, 8, 8]
                 ).cuda()
 
+                avgpool2_output = torch.square(self.avg_pool_layer(conv2_output))
                 fc1_input = avgpool2_output.view(-1, 256)
                 fc1_output = F.relu(self.fc1_layer(fc1_input))
                 fc2_output = F.relu(self.fc2_layer(fc1_output))
@@ -315,8 +322,7 @@ class SplitMNISTNet(SplitNet):
                 output = cpp_get_result(
                     b"MNIST",
                     input.shape[0],
-                    # 0 separate, 1 remove, 2 full
-                    2,
+                    work_mode,
                 )
                 output = [output[i] for i in range(input.shape[0] * 10)]
                 output = torch.reshape(

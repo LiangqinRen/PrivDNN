@@ -24,15 +24,23 @@ bool is_file_exist(const string &file_name) {
     return file_stream.good();
 }
 
-void save_parms() {
-    const string PARMS_PATH = DATA_PATH + string("parms");
+void save_parms(mode work_mode) {
+    string PARMS_PATH = DATA_PATH + string("parms");
+    if (work_mode == full_) {
+        PARMS_PATH += string("_full");
+    }
 
     if (!is_file_exist(PARMS_PATH)) {
         EncryptionParameters parms(scheme_type::ckks);
-        size_t poly_modulus_degree = 32768;
+        size_t poly_modulus_degree = work_mode == full_ ? 32768 : 16384;
         parms.set_poly_modulus_degree(poly_modulus_degree);
-        parms.set_coeff_modulus(CoeffModulus::Create(
-            poly_modulus_degree, {60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 60}));
+        if (work_mode == full_) {
+            parms.set_coeff_modulus(CoeffModulus::Create(
+                poly_modulus_degree, {60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 60}));
+        } else {
+            parms.set_coeff_modulus(
+                CoeffModulus::Create(poly_modulus_degree, {60, 40, 40, 40, 40, 40, 60}));
+        }
 
         ofstream parms_stream;
         parms_stream.open(PARMS_PATH, ios::out | ios::binary);
@@ -41,8 +49,11 @@ void save_parms() {
     }
 }
 
-EncryptionParameters read_parms() {
-    const string PARMS_PATH = DATA_PATH + string("parms");
+EncryptionParameters read_parms(mode work_mode) {
+    string PARMS_PATH = DATA_PATH + string("parms");
+    if (work_mode == full_) {
+        PARMS_PATH += string("_full");
+    }
 
     EncryptionParameters parms;
     ifstream parms_stream;
@@ -53,10 +64,10 @@ EncryptionParameters read_parms() {
     return parms;
 }
 
-void save_keys() {
+void save_keys(mode work_mode) {
     const string secret_key_path = DATA_PATH + string("secret_key");
     if (!is_file_exist(secret_key_path)) {
-        auto parms = read_parms();
+        auto parms = read_parms(work_mode);
         SEALContext context(parms);
         KeyGenerator keygen(context);
         auto secret_key = keygen.secret_key();
@@ -68,11 +79,14 @@ void save_keys() {
     }
 }
 
-SecretKey read_secret_key() {
-    const string SECRET_KEY_PATH = DATA_PATH + string("secret_key");
+SecretKey read_secret_key(mode work_mode) {
+    string SECRET_KEY_PATH = DATA_PATH + string("secret_key");
+    if (work_mode == full_) {
+        SECRET_KEY_PATH += string("_full");
+    }
 
     SecretKey secret_key;
-    auto parms = read_parms();
+    auto parms = read_parms(work_mode);
     SEALContext context(parms);
 
     ifstream secret_key_stream;
@@ -98,9 +112,5 @@ MNIST_Shape get_MNIST_shapes(int batch_size) {
     shapes.pool_output[2][0] = batch_size;
 
     return shapes;
-}
-
-SEALPACK::SEALPACK() {
-    keygen_.create_relin_keys(relin_keys_);
 }
 }

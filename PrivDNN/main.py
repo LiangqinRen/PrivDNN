@@ -87,14 +87,14 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
 
-        """trained_model.cpp_work_mode = models.CppWorkMode.separate
+        trained_model.cpp_work_mode = models.CppWorkMode.separate
         logger.info("SEAL separate inference:")
         worker.test_model(logger, trained_model, dataloaders)
         logger.info(
             f"SEAL separate inference costs {time.time() - start_time:.3f} seconds"
         )
 
-        start_time = time.time()
+        """start_time = time.time()
         trained_model.cpp_work_mode = models.CppWorkMode.remove
         logger.info("SEAL remove inference:")
         worker.test_model(logger, trained_model, dataloaders)
@@ -102,13 +102,13 @@ if __name__ == "__main__":
             f"SEAL remove inference costs {time.time() - start_time:.3f} seconds"
         )"""
 
-        start_time = time.time()
+        """start_time = time.time()
         trained_model.cpp_work_mode = models.CppWorkMode.full
         logger.info("SEAL full inference:")
         worker.test_model(logger, trained_model, dataloaders)
         logger.info(
             f"SEAL full cipher inference costs {time.time() - start_time:.3f} seconds"
-        )
+        )"""
     elif args.model_work_mode == utils.ModelWorkMode.something:
         trained_model = worker.load_trained_model(model_path)
     else:

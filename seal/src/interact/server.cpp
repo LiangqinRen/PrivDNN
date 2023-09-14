@@ -11,150 +11,172 @@
 
 extern "C" {
 
-bool is_file_complete(char *dataset) {
-    if (string(dataset) == string("MNIST")) {
-        auto encrypted_neurons = get_encrypted_neurons_list(dataset);
-        hash<json> encrypted_list_hash;
-        auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
+bool is_file_complete(char *dataset, mode work_mode) {
+    auto encrypted_neurons = get_encrypted_neurons_list(dataset);
+    hash<json> encrypted_list_hash;
+    auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
 
-        const string MNIST_path = DATA_PATH + string(dataset) + string("/");
-        const array<string, 4> file_names{
-            string("_conv1_weight"),
-            string("_conv1_bias"),
-            string("_conv2_weight"),
-            string("_conv2_bias")};
-        for (size_t i = 0; i < file_names.size(); ++i) {
-            if (!is_file_exist(MNIST_path + files_prefix + file_names[i])) {
-                return false;
-            }
-        }
+    const string MNIST_path = DATA_PATH + string(dataset) + string("/");
+    vector<string> file_names{
+        string("_conv1_weight"),
+        string("_conv1_bias"),
+        string("_conv2_weight"),
+        string("_conv2_bias")};
 
-        return true;
-    } else {
-        exit(1);
+    if (work_mode == full_) {
+        file_names.emplace_back(string("_fc1_weight"));
+        file_names.emplace_back(string("_fc1_bias"));
+        file_names.emplace_back(string("_fc2_weight"));
+        file_names.emplace_back(string("_fc2_bias"));
+        file_names.emplace_back(string("_fc3_weight"));
+        file_names.emplace_back(string("_fc3_bias"));
     }
+
+    for (size_t i = 0; i < file_names.size(); ++i) {
+        if (!is_file_exist(MNIST_path + files_prefix + file_names[i])) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-void save_trained_data(char *dataset, double *trained_data) {
-    save_parms();
-    save_keys();
-    if (string(dataset) == string("MNIST")) {
-        MNIST_Shape shapes;
-        const string MNIST_path = DATA_PATH + string(dataset) + string("/");
+void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
+    save_parms(work_mode);
+    save_keys(work_mode);
 
-        auto parms = read_parms();
-        auto secret_key = read_secret_key();
-        SEALContext context(parms);
-        CKKSEncoder encoder(context);
-        Encryptor encryptor(context, secret_key);
+    MNIST_Shape shapes;
+    const string dataset_path = DATA_PATH + string(dataset) + string("/");
 
-        Plaintext temp_plain;
-        Ciphertext temp_cipher;
-        int trained_data_index = 0;
-        auto encryped_neurons = get_encrypted_neurons_list(dataset);
-        hash<json> encrypted_list_hash;
-        auto files_prefix = to_string(encrypted_list_hash(encryped_neurons));
+    auto parms = read_parms(work_mode);
+    auto secret_key = read_secret_key(work_mode);
+    SEALContext context(parms);
+    CKKSEncoder encoder(context);
+    Encryptor encryptor(context, secret_key);
 
-        // conv1_weight
-        ofstream conv1_weight_outstream;
-        const string conv1_weight_path = MNIST_path + files_prefix + string("_conv1_weight");
-        conv1_weight_outstream.open(conv1_weight_path, ios::out | ios::binary);
+    Plaintext temp_plain;
+    Ciphertext temp_cipher;
+    int trained_data_index = 0;
+    auto encryped_neurons = get_encrypted_neurons_list(dataset);
+    hash<json> encrypted_list_hash;
+    auto files_prefix = to_string(encrypted_list_hash(encryped_neurons));
 
-        auto conv1_weight_shape = shapes.conv_weight[1];
-        size_t conv1_weight_size = 1;
-        for (size_t i = 1; i < conv1_weight_shape.size(); ++i) {
-            conv1_weight_size *= conv1_weight_shape[i];
-        }
-        for (size_t i = 0; i < conv1_weight_shape[0]; ++i) {
-            for (size_t j = 0; j < conv1_weight_size; ++j) {
-                if (is_neuron_encrypted(encryped_neurons, 1, i)) {
-                    encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
-                    encryptor.encrypt_symmetric(temp_plain, temp_cipher);
-                    temp_cipher.save(conv1_weight_outstream);
-                } else {
-                    double temp_number = trained_data[trained_data_index];
-                    conv1_weight_outstream.write(
-                        reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
-                }
+    // conv1_weight
+    ofstream conv1_weight_outstream;
+    string conv1_weight_path = dataset_path + files_prefix + string("_conv1_weight");
+    if (work_mode == full_) {
+        conv1_weight_path += string("_full");
+    }
+    conv1_weight_outstream.open(conv1_weight_path, ios::out | ios::binary);
 
-                ++trained_data_index;
-            }
-        }
-        conv1_weight_outstream.close();
-
-        // conv1_bias
-        ofstream conv1_bias_outstream;
-        const string conv1_bias_path = MNIST_path + files_prefix + string("_conv1_bias");
-        conv1_bias_outstream.open(conv1_bias_path, ios::out | ios::binary);
-
-        auto conv1_bias_shape = shapes.conv_bias[1];
-        for (size_t i = 0; i < conv1_bias_shape; ++i) {
+    auto conv1_weight_shape = shapes.conv_weight[1];
+    size_t conv1_weight_size = 1;
+    for (size_t i = 1; i < conv1_weight_shape.size(); ++i) {
+        conv1_weight_size *= conv1_weight_shape[i];
+    }
+    for (size_t i = 0; i < conv1_weight_shape[0]; ++i) {
+        for (size_t j = 0; j < conv1_weight_size; ++j) {
             if (is_neuron_encrypted(encryped_neurons, 1, i)) {
                 encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
                 encryptor.encrypt_symmetric(temp_plain, temp_cipher);
-                temp_cipher.save(conv1_bias_outstream);
+                temp_cipher.save(conv1_weight_outstream);
             } else {
                 double temp_number = trained_data[trained_data_index];
-                conv1_bias_outstream.write(
+                conv1_weight_outstream.write(
                     reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
             }
 
             ++trained_data_index;
         }
-        conv1_bias_outstream.close();
+    }
+    conv1_weight_outstream.close();
 
-        // conv2_weight
-        ofstream conv2_weight_outstream;
-        const string conv2_weight_path = MNIST_path + files_prefix + string("_conv2_weight");
-        conv2_weight_outstream.open(conv2_weight_path, ios::out | ios::binary);
+    // conv1_bias
+    ofstream conv1_bias_outstream;
+    string conv1_bias_path = dataset_path + files_prefix + string("_conv1_bias");
+    if (work_mode == full_) {
+        conv1_bias_path += string("_full");
+    }
+    conv1_bias_outstream.open(conv1_bias_path, ios::out | ios::binary);
 
-        auto conv2_weight_shape = shapes.conv_weight[2];
-        size_t conv2_weight_size = 1;
-        for (size_t i = 1; i < conv2_weight_shape.size(); ++i) {
-            conv2_weight_size *= conv2_weight_shape[i];
+    auto conv1_bias_shape = shapes.conv_bias[1];
+    for (size_t i = 0; i < conv1_bias_shape; ++i) {
+        if (is_neuron_encrypted(encryped_neurons, 1, i)) {
+            encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
+            encryptor.encrypt_symmetric(temp_plain, temp_cipher);
+            temp_cipher.save(conv1_bias_outstream);
+        } else {
+            double temp_number = trained_data[trained_data_index];
+            conv1_bias_outstream.write(
+                reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
         }
-        for (size_t i = 0; i < conv2_weight_shape[0]; ++i) {
-            for (size_t j = 0; j < conv2_weight_size; ++j) {
-                if (is_neuron_encrypted(encryped_neurons, 2, i)) {
-                    encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
-                    encryptor.encrypt_symmetric(temp_plain, temp_cipher);
-                    temp_cipher.save(conv2_weight_outstream);
-                } else {
-                    double trained_data_value = trained_data[trained_data_index];
-                    conv2_weight_outstream.write(
-                        reinterpret_cast<const char *>(&trained_data_value),
-                        sizeof(trained_data_value));
-                }
 
-                ++trained_data_index;
-            }
-        }
-        conv2_weight_outstream.close();
+        ++trained_data_index;
+    }
+    conv1_bias_outstream.close();
 
-        // conv2_bias
-        ofstream conv2_bias_outstream;
-        const string conv2_bias_path = MNIST_path + files_prefix + string("_conv2_bias");
-        conv2_bias_outstream.open(conv2_bias_path, ios::out | ios::binary);
+    // conv2_weight
+    ofstream conv2_weight_outstream;
+    string conv2_weight_path = dataset_path + files_prefix + string("_conv2_weight");
+    if (work_mode == full_) {
+        conv2_weight_path += string("_full");
+    }
+    conv2_weight_outstream.open(conv2_weight_path, ios::out | ios::binary);
 
-        auto conv2_bias_shape = shapes.conv_bias[2];
-        for (size_t i = 0; i < conv2_bias_shape; ++i) {
+    auto conv2_weight_shape = shapes.conv_weight[2];
+    size_t conv2_weight_size = 1;
+    for (size_t i = 1; i < conv2_weight_shape.size(); ++i) {
+        conv2_weight_size *= conv2_weight_shape[i];
+    }
+    for (size_t i = 0; i < conv2_weight_shape[0]; ++i) {
+        for (size_t j = 0; j < conv2_weight_size; ++j) {
             if (is_neuron_encrypted(encryped_neurons, 2, i)) {
                 encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
                 encryptor.encrypt_symmetric(temp_plain, temp_cipher);
-                temp_cipher.save(conv2_bias_outstream);
+                temp_cipher.save(conv2_weight_outstream);
             } else {
-                double temp_number = trained_data[trained_data_index];
-                conv2_bias_outstream.write(
-                    reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
+                double trained_data_value = trained_data[trained_data_index];
+                conv2_weight_outstream.write(
+                    reinterpret_cast<const char *>(&trained_data_value),
+                    sizeof(trained_data_value));
             }
 
             ++trained_data_index;
         }
-        conv2_bias_outstream.close();
+    }
+    conv2_weight_outstream.close();
 
+    // conv2_bias
+    ofstream conv2_bias_outstream;
+    string conv2_bias_path = dataset_path + files_prefix + string("_conv2_bias");
+    if (work_mode == full_) {
+        conv2_bias_path += string("_full");
+    }
+    conv2_bias_outstream.open(conv2_bias_path, ios::out | ios::binary);
+
+    auto conv2_bias_shape = shapes.conv_bias[2];
+    for (size_t i = 0; i < conv2_bias_shape; ++i) {
+        if (is_neuron_encrypted(encryped_neurons, 2, i)) {
+            encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
+            encryptor.encrypt_symmetric(temp_plain, temp_cipher);
+            temp_cipher.save(conv2_bias_outstream);
+        } else {
+            double temp_number = trained_data[trained_data_index];
+            conv2_bias_outstream.write(
+                reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
+        }
+
+        ++trained_data_index;
+    }
+    conv2_bias_outstream.close();
+
+    if (work_mode == full_) {
         // fc1_weight
         ofstream fc1_weight_outstream;
-        const string fc1_weight_path = MNIST_path + files_prefix + string("_fc1_weight");
+        string fc1_weight_path = dataset_path + files_prefix + string("_fc1_weight");
+        if (work_mode == full_) {
+            fc1_weight_path += string("_full");
+        }
         fc1_weight_outstream.open(fc1_weight_path, ios::out | ios::binary);
 
         auto fc1_weight_shape = shapes.fc_weight[1];
@@ -169,7 +191,10 @@ void save_trained_data(char *dataset, double *trained_data) {
 
         // fc1_bias
         ofstream fc1_bias_outstream;
-        const string fc1_bias_path = MNIST_path + files_prefix + string("_fc1_bias");
+        string fc1_bias_path = dataset_path + files_prefix + string("_fc1_bias");
+        if (work_mode == full_) {
+            fc1_bias_path += string("_full");
+        }
         fc1_bias_outstream.open(fc1_bias_path, ios::out | ios::binary);
 
         size_t fc1_bias_size = shapes.fc_bias[1];
@@ -183,7 +208,10 @@ void save_trained_data(char *dataset, double *trained_data) {
 
         // fc2_weight
         ofstream fc2_weight_outstream;
-        const string fc2_weight_path = MNIST_path + files_prefix + string("_fc2_weight");
+        string fc2_weight_path = dataset_path + files_prefix + string("_fc2_weight");
+        if (work_mode == full_) {
+            fc2_weight_path += string("_full");
+        }
         fc2_weight_outstream.open(fc2_weight_path, ios::out | ios::binary);
 
         auto fc2_weight_shape = shapes.fc_weight[2];
@@ -198,7 +226,10 @@ void save_trained_data(char *dataset, double *trained_data) {
 
         // fc2_bias
         ofstream fc2_bias_outstream;
-        const string fc2_bias_path = MNIST_path + files_prefix + string("_fc2_bias");
+        string fc2_bias_path = dataset_path + files_prefix + string("_fc2_bias");
+        if (work_mode == full_) {
+            fc2_bias_path += string("_full");
+        }
         fc2_bias_outstream.open(fc2_bias_path, ios::out | ios::binary);
 
         size_t fc2_bias_size = shapes.fc_bias[2];
@@ -212,7 +243,10 @@ void save_trained_data(char *dataset, double *trained_data) {
 
         // fc3_weight
         ofstream fc3_weight_outstream;
-        const string fc3_weight_path = MNIST_path + files_prefix + string("_fc3_weight");
+        string fc3_weight_path = dataset_path + files_prefix + string("_fc3_weight");
+        if (work_mode == full_) {
+            fc3_weight_path += string("_full");
+        }
         fc3_weight_outstream.open(fc3_weight_path, ios::out | ios::binary);
 
         auto fc3_weight_shape = shapes.fc_weight[3];
@@ -227,7 +261,10 @@ void save_trained_data(char *dataset, double *trained_data) {
 
         // fc3_bias
         ofstream fc3_bias_outstream;
-        const string fc3_bias_path = MNIST_path + files_prefix + string("_fc3_bias");
+        string fc3_bias_path = dataset_path + files_prefix + string("_fc3_bias");
+        if (work_mode == full_) {
+            fc3_bias_path += string("_full");
+        }
         fc3_bias_outstream.open(fc3_bias_path, ios::out | ios::binary);
 
         size_t fc3_bias_size = shapes.fc_bias[3];
@@ -238,12 +275,10 @@ void save_trained_data(char *dataset, double *trained_data) {
             ++trained_data_index;
         }
         fc3_bias_outstream.close();
-    } else {
-        exit(1);
     }
 }
 
-void thread_worker_decrypt_result(
+/*void thread_worker_decrypt_result(
     const vector<Ciphertext> &ciphers,
     vector<double> &numbers,
     int begining,
@@ -283,9 +318,9 @@ void thread_decrypt_result(const vector<Ciphertext> &ciphers, vector<double> &nu
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
     }
-}
+}*/
 
-vector<double> read_result(
+vector<double> read_conv_result(
     const string &dataset,
     SEALPACK &seal,
     array<size_t, 4> output_shape,
@@ -356,11 +391,19 @@ vector<double> read_fc_result(SEALPACK &seal, array<size_t, 2> output_shape) {
 }
 
 double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
-    SEALPACK seal;
+    SEALPACK seal(work_mode);
     auto shapes = get_MNIST_shapes(batch_size);
-    size_t output_size = batch_size * 10;
+    size_t output_size = batch_size * work_mode == full_
+        ? 10
+        : shapes.pool_output[2][1] * shapes.pool_output[2][2] * shapes.pool_output[2][3];
 
-    auto final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
+    vector<double> final_result;
+    if (work_mode == separate_ || work_mode == remove_) {
+        final_result =
+            read_conv_result(dataset, seal, shapes.conv_output[2], output_size, work_mode);
+    } else {
+        final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
+    }
     double *output = new double[output_size];
     for (size_t i = 0; i < output_size; ++i) {
         output[i] = final_result[i];

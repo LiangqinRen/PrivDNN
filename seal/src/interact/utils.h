@@ -36,19 +36,25 @@ json get_encrypted_neurons_list(string dataset);
 bool is_neuron_encrypted(json encryped_neurons, size_t round, size_t neuron);
 
 bool is_file_exist(const string &file_name);
-void save_parms();
-void save_keys();
-EncryptionParameters read_parms();
-SecretKey read_secret_key();
+void save_parms(mode work_mode);
+void save_keys(mode work_mode);
+EncryptionParameters read_parms(mode work_mode);
+SecretKey read_secret_key(mode work_mode);
 
 MNIST_Shape get_MNIST_shapes(int batch_size);
 
 class SEALPACK {
 public:
-    SEALPACK();
+    SEALPACK(mode work_mode) {
+        work_mode_ = work_mode;
+        keygen_.create_relin_keys(relin_keys_);
 
-    EncryptionParameters parms_ = read_parms();
-    SecretKey secret_key_ = read_secret_key();
+        parms_ = read_parms(work_mode_);
+        secret_key_ = read_secret_key(work_mode_);
+    }
+
+    EncryptionParameters parms_;
+    SecretKey secret_key_;
 
     SEALContext context_ = SEALContext(parms_);
     CKKSEncoder encoder_ = CKKSEncoder(context_);
@@ -61,5 +67,8 @@ public:
     Plaintext plain_;
     Ciphertext cipher_;
     RelinKeys relin_keys_;
+
+private:
+    mode work_mode_;
 };
 }

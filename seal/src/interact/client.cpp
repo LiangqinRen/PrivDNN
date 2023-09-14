@@ -384,8 +384,6 @@ vector<variant<vector<double>, Ciphertext>> avg_pool(
         }
         vector<variant<vector<double>, Ciphertext>> output(output_size);
 
-        SEALPACK seal;
-
         Plaintext quarter_plain;
         seal.encoder_.encode(0.25, SCALE, quarter_plain);
 
@@ -470,7 +468,8 @@ vector<variant<vector<double>, Ciphertext>> recombine_input(
 
 void save_worker_result(string dataset, vector<variant<vector<double>, Ciphertext>> &input) {
     // move all elements in the input
-    const string result_path = DATA_PATH + string("communication/") + dataset + string("_result");
+    const string result_path =
+        DATA_PATH + string("communication/") + dataset + string("_conv2_result");
 
     ofstream result_output_stream;
     result_output_stream.open(result_path, ios::out | ios::binary);
@@ -547,7 +546,8 @@ vector<Ciphertext> read_fc_bias(SEALPACK &seal, const string &path, size_t size)
 
 void save_fc_result(string dataset, vector<Ciphertext> &input) {
     // move all elements in the input
-    const string result_path = DATA_PATH + string("communication/") + dataset + string("_result");
+    const string result_path =
+        DATA_PATH + string("communication/") + dataset + string("fc3_result");
 
     ofstream result_output_stream;
     result_output_stream.open(result_path, ios::out | ios::binary);
@@ -598,41 +598,37 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
 }
 
 void worker(char *dataset, int batch_size, double *input_data, mode work_mode = separate_) {
-    if (string(dataset) == string("MNIST")) {
-        SEALPACK seal;
+    SEALPACK seal(work_mode);
 
-        auto shapes = get_MNIST_shapes(batch_size);
-        auto encrypted_neurons = get_encrypted_neurons_list(dataset);
-        auto input = recombine_input(shapes.conv_input[1], input_data);
+    auto shapes = get_MNIST_shapes(batch_size);
+    auto encrypted_neurons = get_encrypted_neurons_list(dataset);
+    auto input = recombine_input(shapes.conv_input[1], input_data);
 
-        for (size_t round = 1; round <= shapes.conv_input.size(); ++round) {
-            auto conv_result =
-                conv(dataset, seal, shapes, round, input, encrypted_neurons, work_mode);
+    for (size_t round = 1; round <= shapes.conv_input.size(); ++round) {
+        auto conv_result = conv(dataset, seal, shapes, round, input, encrypted_neurons, work_mode);
+        if (round == 2) {
+            if (work_mode == separate_ or work_mode == remove_) {
+                save_worker_result(dataset, conv_result);
+            } else {
+                auto avg_pool_result = avg_pool(dataset, seal, shapes, round, conv_result);
+                square_activate(dataset, seal, avg_pool_result);
+
+                vector<Ciphertext> fc_input;
+                for (size_t i = 0; i < avg_pool_result.size(); ++i) {
+                    fc_input.emplace_back(get<Ciphertext>(avg_pool_result[i]));
+                }
+                for (size_t i = 1; i < 3; ++i) {
+                    auto fc_output = fc(seal, fc_input, i);
+                    fc_input = move(fc_output);
+                }
+
+                save_fc_result(dataset, fc_input);
+            }
+        } else {
             auto avg_pool_result = avg_pool(dataset, seal, shapes, round, conv_result);
             square_activate(dataset, seal, avg_pool_result);
             input = move(avg_pool_result);
-            if (round == 2) {
-                if (work_mode == separate_ or work_mode == remove_) {
-                    for (size_t i = 0; i < input.size(); ++i) {
-                        auto cipher = get<Ciphertext>(input[i]);
-                    }
-                    save_worker_result(dataset, input);
-                } else {
-                    vector<Ciphertext> fc_input;
-                    for (size_t i = 0; i < input.size(); ++i) {
-                        fc_input.emplace_back(get<Ciphertext>(input[i]));
-                    }
-                    for (size_t i = 1; i < 3; ++i) {
-                        auto fc_output = fc(seal, fc_input, i);
-                        fc_input = move(fc_output);
-                    }
-
-                    save_fc_result(dataset, fc_input);
-                }
-            }
         }
-    } else {
-        exit(1);
     }
 }
 }
