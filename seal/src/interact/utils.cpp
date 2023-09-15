@@ -36,7 +36,7 @@ void save_parms(mode work_mode) {
         parms.set_poly_modulus_degree(poly_modulus_degree);
         if (work_mode == full_) {
             parms.set_coeff_modulus(CoeffModulus::Create(
-                poly_modulus_degree, {60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 60}));
+                poly_modulus_degree, {60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 60}));
         } else {
             parms.set_coeff_modulus(
                 CoeffModulus::Create(poly_modulus_degree, {60, 40, 40, 40, 40, 60}));
@@ -54,18 +54,21 @@ EncryptionParameters read_parms(mode work_mode) {
     if (work_mode == full_) {
         PARMS_PATH += string("_full");
     }
-
+    cout << __LINE__ << ":" << work_mode << "|" << PARMS_PATH << endl;
     EncryptionParameters parms;
     ifstream parms_stream;
     parms_stream.open(PARMS_PATH, ios::in | ios::binary);
     parms.load(parms_stream);
     parms_stream.close();
-
+    cout << __LINE__ << endl;
     return parms;
 }
 
 void save_keys(mode work_mode) {
-    const string secret_key_path = DATA_PATH + string("secret_key");
+    string secret_key_path = DATA_PATH + string("secret_key");
+    if (work_mode == full_) {
+        secret_key_path += string("_full");
+    }
     if (!is_file_exist(secret_key_path)) {
         auto parms = read_parms(work_mode);
         SEALContext context(parms);
@@ -84,7 +87,7 @@ SecretKey read_secret_key(mode work_mode) {
     if (work_mode == full_) {
         SECRET_KEY_PATH += string("_full");
     }
-
+    cout << __LINE__ << ":" << work_mode << "|" << SECRET_KEY_PATH << endl;
     SecretKey secret_key;
     auto parms = read_parms(work_mode);
     SEALContext context(parms);
@@ -93,7 +96,7 @@ SecretKey read_secret_key(mode work_mode) {
     secret_key_stream.open(SECRET_KEY_PATH, ios::in | ios::binary);
     secret_key.load(context, secret_key_stream);
     secret_key_stream.close();
-
+    cout << __LINE__ << endl;
     return secret_key;
 }
 

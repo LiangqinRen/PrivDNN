@@ -47,8 +47,9 @@ class SEALPACK {
 public:
     SEALPACK(mode work_mode) : work_mode_(work_mode) {
         keygen_.create_relin_keys(relin_keys_);
+        cout << __LINE__ << "|" << work_mode_ << endl;
     }
-
+    mode work_mode_;
     EncryptionParameters parms_ = read_parms(work_mode_);
     SecretKey secret_key_ = read_secret_key(work_mode_);
 
@@ -63,8 +64,5 @@ public:
     Plaintext plain_;
     Ciphertext cipher_;
     RelinKeys relin_keys_;
-
-private:
-    mode work_mode_;
 };
 }

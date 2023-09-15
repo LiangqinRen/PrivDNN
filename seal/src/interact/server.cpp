@@ -17,19 +17,25 @@ bool is_file_complete(char *dataset, mode work_mode) {
     auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
 
     const string MNIST_path = DATA_PATH + string(dataset) + string("/");
-    vector<string> file_names{
-        string("_conv1_weight"),
-        string("_conv1_bias"),
-        string("_conv2_weight"),
-        string("_conv2_bias")};
-
-    if (work_mode == full_) {
-        file_names.emplace_back(string("_fc1_weight"));
-        file_names.emplace_back(string("_fc1_bias"));
-        file_names.emplace_back(string("_fc2_weight"));
-        file_names.emplace_back(string("_fc2_bias"));
-        file_names.emplace_back(string("_fc3_weight"));
-        file_names.emplace_back(string("_fc3_bias"));
+    vector<string> file_names;
+    if (work_mode == separate_ or work_mode == remove_) {
+        file_names = {
+            string("_conv1_weight"),
+            string("_conv1_bias"),
+            string("_conv2_weight"),
+            string("_conv2_bias")};
+    } else {
+        file_names = {
+            string("_conv1_weight_full"),
+            string("_conv1_bias_full"),
+            string("_conv2_weight_full"),
+            string("_conv2_bias_full"),
+            string("_fc1_weight_full"),
+            string("_fc1_bias_full"),
+            string("_fc2_weight_full"),
+            string("_fc2_bias_full"),
+            string("_fc3_weight_full"),
+            string("_fc3_bias_full")};
     }
 
     for (size_t i = 0; i < file_names.size(); ++i) {
@@ -359,11 +365,6 @@ vector<double> read_conv_result(
                 }
             }
         }
-        /*cout << output.size() << endl;
-        for (size_t i = 0; i < 25; ++i) {
-            cout << output[i] << " ";
-        }
-        exit(0);*/
         result_stream.close();
         return output;
     } else {
@@ -373,7 +374,7 @@ vector<double> read_conv_result(
 
 vector<double> read_fc_result(SEALPACK &seal, array<size_t, 2> output_shape) {
     // MNIST only
-    const string result_path = DATA_PATH + string("communication/MNIST_result");
+    const string result_path = DATA_PATH + string("communication/MNIST_fc3_result");
 
     ifstream result_stream;
     result_stream.open(result_path, ios::in | ios::binary);
@@ -401,8 +402,7 @@ double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
         (work_mode == full_
              ? 10
              : shapes.conv_output[2][1] * shapes.conv_output[2][2] * shapes.conv_output[2][3]);
-    // cout << batch_size << " " << output_size << endl;
-    // exit(0);
+
     vector<double> final_result;
     if (work_mode == separate_ || work_mode == remove_) {
         final_result =
@@ -411,16 +411,10 @@ double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
         final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
     }
 
-    // cout << final_result.size() << endl;
     double *output = new double[output_size];
     for (size_t i = 0; i < output_size; ++i) {
         output[i] = final_result[i];
     }
-
-    // for (size_t i = 0; i < 30; ++i) {
-    //    cout << output[i] << " ";
-    //}
-    // exit(0);
 
     return output;
 }

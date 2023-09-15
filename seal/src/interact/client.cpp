@@ -38,7 +38,8 @@ vector<variant<double, Ciphertext>> read_conv_weight(
     string dataset,
     SEALPACK &seal,
     int round,
-    json encrypted_neurons) {
+    json encrypted_neurons,
+    mode work_mode) {
     MNIST_Shape shapes;
     auto weight_shape = shapes.conv_weight[round];
     size_t weight_size = 1;
@@ -49,9 +50,12 @@ vector<variant<double, Ciphertext>> read_conv_weight(
 
     hash<json> encrypted_list_hash;
     auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
-    const string weight_path = move(
+    string weight_path = move(
         DATA_PATH + string(dataset) + string("/") + files_prefix + string("_conv") +
         to_string(round) + string("_weight"));
+    if (work_mode == full_) {
+        weight_path += string("_full");
+    }
     ifstream trained_data_input_stream;
     trained_data_input_stream.open(weight_path, ios::in | ios::binary);
 
@@ -85,13 +89,17 @@ vector<variant<double, Ciphertext>> read_conv_bias(
     string dataset,
     SEALPACK &seal,
     int round,
-    json encrypted_neurons) {
+    json encrypted_neurons,
+    mode work_mode) {
     MNIST_Shape shapes;
     hash<json> encrypted_list_hash;
     auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
-    const string bias_path = move(
+    string bias_path = move(
         DATA_PATH + string(dataset) + string("/") + files_prefix + string("_conv") +
         to_string(round) + string("_bias"));
+    if (work_mode == full_) {
+        bias_path += string("_full");
+    }
 
     ifstream MNIST_bias_instream;
     MNIST_bias_instream.open(bias_path, ios::in | ios::binary);
@@ -246,8 +254,8 @@ vector<variant<vector<double>, Ciphertext>> conv(
     json encrypted_neurons,
     mode work_mode) {
     if (dataset == string("MNIST")) {
-        auto conv_weight = read_conv_weight(dataset, seal, round, encrypted_neurons);
-        auto conv_bias = read_conv_bias(dataset, seal, round, encrypted_neurons);
+        auto conv_weight = read_conv_weight(dataset, seal, round, encrypted_neurons, work_mode);
+        auto conv_bias = read_conv_bias(dataset, seal, round, encrypted_neurons, work_mode);
 
         size_t kernal_size = shapes.kernal_sizes[round];
         array<size_t, 4> output_shape = shapes.conv_output[round];
@@ -470,6 +478,7 @@ void save_worker_result(string dataset, vector<variant<vector<double>, Ciphertex
     // move all elements in the input
     const string result_path =
         DATA_PATH + string("communication/") + dataset + string("_conv2_result");
+
     ofstream result_output_stream;
     result_output_stream.open(result_path, ios::out | ios::binary);
     for (size_t i = 0; i < input.size(); ++i) {
@@ -559,7 +568,34 @@ vector<Ciphertext> read_fc_bias(SEALPACK &seal, const string &path, size_t size)
 void save_fc_result(string dataset, vector<Ciphertext> &input) {
     // move all elements in the input
     const string result_path =
-        DATA_PATH + string("communication/") + dataset + string("fc3_result");
+        DATA_PATH + string("communication/") + dataset + string("_fc3_result");
+
+    ofstream result_output_stream;
+    result_output_stream.open(result_path, ios::out | ios::binary);
+    for (size_t i = 0; i < input.size(); ++i) {
+        auto cipher = move(input[i]);
+        cipher.save(result_output_stream);
+    }
+
+    result_output_stream.close();
+}
+
+vector<Ciphertext> read_full_cipher_result(SEALPACK &seal, string name, size_t size) {
+    const string result_path = DATA_PATH + string("communication/MNIST_") + name;
+    ifstream data_input_stream;
+    data_input_stream.open(result_path, ios::in | ios::binary);
+    vector<Ciphertext> result;
+    for (size_t i = 0; i < size; ++i) {
+        seal.cipher_.load(seal.context_, data_input_stream);
+        result.emplace_back(seal.cipher_);
+    }
+
+    data_input_stream.close();
+    return result;
+}
+
+void save_full_cipher_result(string name, vector<Ciphertext> &input) {
+    const string result_path = DATA_PATH + string("communication/MNIST_") + name;
 
     ofstream result_output_stream;
     result_output_stream.open(result_path, ios::out | ios::binary);
@@ -577,9 +613,9 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
     hash<json> encrypted_list_hash;
     auto files_prefix = to_string(encrypted_list_hash(encryped_neurons));
     const string fc_weight_path =
-        MNIST_path + files_prefix + string("_fc") + to_string(round) + string("_weight");
+        MNIST_path + files_prefix + string("_fc") + to_string(round) + string("_weight_full");
     const string fc_bias_path =
-        MNIST_path + files_prefix + string("_fc") + to_string(round) + string("_bias");
+        MNIST_path + files_prefix + string("_fc") + to_string(round) + string("_bias_full");
 
     size_t fc_weight_poi = 0;
     MNIST_Shape shapes;
@@ -594,7 +630,7 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
         auto weight_data = read_fc_weight(seal, fc_weight_path, fc_weight_poi, weight_shape[0]);
         for (size_t j = 0; j < weight_shape[0]; ++j) {
             auto weight = weight_data[j];
-            degrade_cipher_levels(seal, weight, 5 + round);
+            degrade_cipher_levels(seal, weight, 5 + round * 2 - 1);
 
             seal.evaluator_.multiply_inplace(weight, input[j]);
             seal.evaluator_.relinearize_inplace(weight, seal.relin_keys_);
@@ -614,6 +650,7 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
     auto shapes = get_MNIST_shapes(batch_size);
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
     auto input = recombine_input(shapes.conv_input[1], input_data);
+
     for (size_t round = 1; round <= shapes.conv_input.size(); ++round) {
         auto conv_result = conv(dataset, seal, shapes, round, input, encrypted_neurons, work_mode);
         if (round == 2) {
@@ -627,18 +664,18 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
                 for (size_t i = 0; i < avg_pool_result.size(); ++i) {
                     fc_input.emplace_back(get<Ciphertext>(avg_pool_result[i]));
                 }
-                for (size_t i = 1; i < 3; ++i) {
-                    auto fc_output = fc(seal, fc_input, i);
-                    square_activate_fc(dataset, seal, fc_output);
-                    fc_input = move(fc_output);
-                }
-                auto fc_output = fc(seal, fc_input, 3);
-                save_fc_result(dataset, fc_output);
+                auto fc1_output = fc(seal, fc_input, 1);
+                square_activate_fc(dataset, seal, fc1_output);
+
+                auto fc2_output = fc(seal, fc1_output, 2);
+                square_activate_fc(dataset, seal, fc2_output);
+
+                auto fc3_output = fc(seal, fc2_output, 3);
+                save_fc_result(dataset, fc3_output);
             }
         } else {
             auto avg_pool_result = avg_pool(dataset, seal, shapes, round, conv_result);
             square_activate(dataset, seal, avg_pool_result);
-
             input = move(avg_pool_result);
         }
     }

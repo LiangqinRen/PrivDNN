@@ -291,7 +291,6 @@ class SplitMNISTNet(SplitNet):
             input_list = torch.flatten(input).tolist()
             input_pointer = (ctypes.c_double * len(input_list))(*input_list)
             cpp_worker(b"MNIST", input.shape[0], input_pointer, work_mode)
-
             cpp_get_result = server_library.get_result
             cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
             cpp_get_result.restype = ctypes.POINTER(ctypes.c_double)
