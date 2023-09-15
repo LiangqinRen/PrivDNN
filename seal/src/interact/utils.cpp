@@ -39,7 +39,7 @@ void save_parms(mode work_mode) {
                 poly_modulus_degree, {60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 60}));
         } else {
             parms.set_coeff_modulus(
-                CoeffModulus::Create(poly_modulus_degree, {60, 40, 40, 40, 40, 40, 60}));
+                CoeffModulus::Create(poly_modulus_degree, {60, 40, 40, 40, 40, 60}));
         }
 
         ofstream parms_stream;

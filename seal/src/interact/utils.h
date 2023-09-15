@@ -45,16 +45,12 @@ MNIST_Shape get_MNIST_shapes(int batch_size);
 
 class SEALPACK {
 public:
-    SEALPACK(mode work_mode) {
-        work_mode_ = work_mode;
+    SEALPACK(mode work_mode) : work_mode_(work_mode) {
         keygen_.create_relin_keys(relin_keys_);
-
-        parms_ = read_parms(work_mode_);
-        secret_key_ = read_secret_key(work_mode_);
     }
 
-    EncryptionParameters parms_;
-    SecretKey secret_key_;
+    EncryptionParameters parms_ = read_parms(work_mode_);
+    SecretKey secret_key_ = read_secret_key(work_mode_);
 
     SEALContext context_ = SEALContext(parms_);
     CKKSEncoder encoder_ = CKKSEncoder(context_);

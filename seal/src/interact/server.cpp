@@ -328,7 +328,7 @@ vector<double> read_conv_result(
     mode work_mode) {
     if (dataset == string("MNIST")) {
         const string result_path =
-            DATA_PATH + string("communication/") + dataset + string("_result");
+            DATA_PATH + string("communication/") + dataset + string("_conv2_result");
 
         ifstream result_stream;
         result_stream.open(result_path, ios::in | ios::binary);
@@ -359,7 +359,11 @@ vector<double> read_conv_result(
                 }
             }
         }
-
+        /*cout << output.size() << endl;
+        for (size_t i = 0; i < 25; ++i) {
+            cout << output[i] << " ";
+        }
+        exit(0);*/
         result_stream.close();
         return output;
     } else {
@@ -393,10 +397,12 @@ vector<double> read_fc_result(SEALPACK &seal, array<size_t, 2> output_shape) {
 double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
     SEALPACK seal(work_mode);
     auto shapes = get_MNIST_shapes(batch_size);
-    size_t output_size = batch_size * work_mode == full_
-        ? 10
-        : shapes.pool_output[2][1] * shapes.pool_output[2][2] * shapes.pool_output[2][3];
-
+    size_t output_size = batch_size *
+        (work_mode == full_
+             ? 10
+             : shapes.conv_output[2][1] * shapes.conv_output[2][2] * shapes.conv_output[2][3]);
+    // cout << batch_size << " " << output_size << endl;
+    // exit(0);
     vector<double> final_result;
     if (work_mode == separate_ || work_mode == remove_) {
         final_result =
@@ -404,10 +410,17 @@ double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
     } else {
         final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
     }
+
+    // cout << final_result.size() << endl;
     double *output = new double[output_size];
     for (size_t i = 0; i < output_size; ++i) {
         output[i] = final_result[i];
     }
+
+    // for (size_t i = 0; i < 30; ++i) {
+    //    cout << output[i] << " ";
+    //}
+    // exit(0);
 
     return output;
 }

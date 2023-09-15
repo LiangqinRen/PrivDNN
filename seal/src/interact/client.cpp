@@ -470,7 +470,6 @@ void save_worker_result(string dataset, vector<variant<vector<double>, Ciphertex
     // move all elements in the input
     const string result_path =
         DATA_PATH + string("communication/") + dataset + string("_conv2_result");
-
     ofstream result_output_stream;
     result_output_stream.open(result_path, ios::out | ios::binary);
     for (size_t i = 0; i < input.size(); ++i) {
@@ -485,7 +484,6 @@ void save_worker_result(string dataset, vector<variant<vector<double>, Ciphertex
             }
         }
     }
-
     result_output_stream.close();
 }
 
@@ -509,6 +507,20 @@ void square_activate(
 
                 input[i] = values;
             }
+        }
+    } else {
+        exit(1);
+    }
+}
+
+void square_activate_fc(string dataset, SEALPACK &seal, vector<Ciphertext> &input) {
+    if (dataset == string("MNIST")) {
+        for (size_t i = 0; i < input.size(); ++i) {
+            auto input_cipher = input[i];
+            seal.evaluator_.square_inplace(input_cipher);
+            seal.evaluator_.relinearize_inplace(input_cipher, seal.relin_keys_);
+            seal.evaluator_.rescale_to_next_inplace(input_cipher);
+            input[i] = input_cipher;
         }
     } else {
         exit(1);
@@ -578,7 +590,7 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
     vector<Ciphertext> result;
     for (size_t i = 0; i < weight_shape[1]; ++i) {
         auto sum = bias_data[i];
-        degrade_cipher_levels(seal, sum, 6 + round);
+        degrade_cipher_levels(seal, sum, 5 + round * 2);
         auto weight_data = read_fc_weight(seal, fc_weight_path, fc_weight_poi, weight_shape[0]);
         for (size_t j = 0; j < weight_shape[0]; ++j) {
             auto weight = weight_data[j];
@@ -599,11 +611,9 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
 
 void worker(char *dataset, int batch_size, double *input_data, mode work_mode = separate_) {
     SEALPACK seal(work_mode);
-
     auto shapes = get_MNIST_shapes(batch_size);
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
     auto input = recombine_input(shapes.conv_input[1], input_data);
-
     for (size_t round = 1; round <= shapes.conv_input.size(); ++round) {
         auto conv_result = conv(dataset, seal, shapes, round, input, encrypted_neurons, work_mode);
         if (round == 2) {
@@ -619,14 +629,16 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
                 }
                 for (size_t i = 1; i < 3; ++i) {
                     auto fc_output = fc(seal, fc_input, i);
+                    square_activate_fc(dataset, seal, fc_output);
                     fc_input = move(fc_output);
                 }
-
-                save_fc_result(dataset, fc_input);
+                auto fc_output = fc(seal, fc_input, 3);
+                save_fc_result(dataset, fc_output);
             }
         } else {
             auto avg_pool_result = avg_pool(dataset, seal, shapes, round, conv_result);
             square_activate(dataset, seal, avg_pool_result);
+
             input = move(avg_pool_result);
         }
     }
