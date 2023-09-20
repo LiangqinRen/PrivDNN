@@ -40,7 +40,7 @@ vector<variant<double, Ciphertext>> read_conv_weight(
     int round,
     json encrypted_neurons,
     mode work_mode) {
-    MNIST_Shape shapes;
+    auto shapes = Shapes[string(dataset)];
     auto weight_shape = shapes.conv_weight[round];
     size_t weight_size = 1;
     for (size_t i = 0; i < weight_shape.size(); ++i) {
@@ -56,6 +56,7 @@ vector<variant<double, Ciphertext>> read_conv_weight(
     if (work_mode == full_) {
         weight_path += string("_full");
     }
+    cout << __LINE__ << "|" << weight_path << endl;
     ifstream trained_data_input_stream;
     trained_data_input_stream.open(weight_path, ios::in | ios::binary);
 
@@ -64,6 +65,8 @@ vector<variant<double, Ciphertext>> read_conv_weight(
         block_size *= weight_shape[i];
     }
 
+    cout << __LINE__ << "|" << weight_shape[0] << "|" << block_size << endl;
+    int conutt = 0;
     size_t index = 0;
     for (size_t i = 0; i < weight_shape[0]; ++i) {
         if (is_neuron_encrypted(encrypted_neurons, round, i)) {
@@ -76,11 +79,13 @@ vector<variant<double, Ciphertext>> read_conv_weight(
                 double weight_value = 0;
                 trained_data_input_stream.read(
                     reinterpret_cast<char *>(&weight_value), sizeof(weight_value));
+                cout << __LINE__ << "|" << weight_value << endl;
+                ++conutt;
                 weight[index++] = weight_value;
             }
         }
     }
-
+    cout << conutt << endl;
     trained_data_input_stream.close();
     return weight;
 }
@@ -91,7 +96,7 @@ vector<variant<double, Ciphertext>> read_conv_bias(
     int round,
     json encrypted_neurons,
     mode work_mode) {
-    MNIST_Shape shapes;
+    auto shape = Shapes[string(dataset)];
     hash<json> encrypted_list_hash;
     auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
     string bias_path = move(
@@ -100,23 +105,25 @@ vector<variant<double, Ciphertext>> read_conv_bias(
     if (work_mode == full_) {
         bias_path += string("_full");
     }
-
-    ifstream MNIST_bias_instream;
-    MNIST_bias_instream.open(bias_path, ios::in | ios::binary);
-    vector<variant<double, Ciphertext>> bias(shapes.conv_bias[round]);
+    cout << __LINE__ << "|" << bias_path << endl;
+    ifstream bias_instream;
+    bias_instream.open(bias_path, ios::in | ios::binary);
+    vector<variant<double, Ciphertext>> bias(shape.conv_bias[round]);
     for (size_t i = 0; i < bias.size(); ++i) {
         if (is_neuron_encrypted(encrypted_neurons, round, i)) {
-            seal.cipher_.load(seal.context_, MNIST_bias_instream);
+            seal.cipher_.load(seal.context_, bias_instream);
             degrade_cipher_levels(seal, seal.cipher_, 1 + (round - 1) * 3);
             bias[i] = seal.cipher_;
         } else {
             double bias_value;
-            MNIST_bias_instream.read(reinterpret_cast<char *>(&bias_value), sizeof(bias_value));
+            cout << __LINE__ << "|" << bias_value << endl;
+            bias_instream.read(reinterpret_cast<char *>(&bias_value), sizeof(bias_value));
             bias[i] = bias_value;
         }
     }
-    MNIST_bias_instream.close();
-
+    bias_instream.close();
+    cout << bias.size() << endl;
+    // exit(0);
     return bias;
 }
 
@@ -127,7 +134,7 @@ void thread_conv_worker(
     const vector<variant<double, Ciphertext>> &weight,
     Ciphertext bias,
     vector<variant<vector<double>, Ciphertext>> &result,
-    MNIST_Shape shapes,
+    Shape shape,
     size_t round,
     int begining,
     int ending) {
@@ -136,15 +143,15 @@ void thread_conv_worker(
     for (int i = begining; i < ending; ++i) {
         auto sum = bias;
         if (round == 1) {
-            for (size_t a = 0; a < shapes.kernal_sizes[1]; ++a) {
-                for (size_t b = 0; b < shapes.kernal_sizes[1]; ++b) {
+            for (size_t a = 0; a < shape.kernal_sizes[1]; ++a) {
+                for (size_t b = 0; b < shape.kernal_sizes[1]; ++b) {
                     auto input_values = get<vector<double>>(input[get_index(
-                        shapes.conv_input[1],
+                        shape.conv_input[1],
                         {0, 0, output_indexes[i][2] + a, output_indexes[i][3] + b})]);
                     Plaintext input_plain;
                     seal.encoder_.encode(input_values, SCALE, input_plain);
                     auto weight_cipher = get<Ciphertext>(
-                        weight[get_index(shapes.conv_weight[1], {output_indexes[i][1], 0, a, b})]);
+                        weight[get_index(shape.conv_weight[1], {output_indexes[i][1], 0, a, b})]);
 
                     Ciphertext multiplied_cipher;
                     seal.evaluator_.multiply_plain(weight_cipher, input_plain, multiplied_cipher);
@@ -154,21 +161,21 @@ void thread_conv_worker(
             }
 
             result[get_index(
-                shapes.conv_output[1],
+                shape.conv_output[1],
                 {0, output_indexes[i][1], output_indexes[i][2], output_indexes[i][3]})] = move(sum);
         } else {
-            for (size_t channel = 0; channel < shapes.conv_output[1][1]; ++channel) {
+            for (size_t channel = 0; channel < shape.conv_output[1][1]; ++channel) {
                 if (!is_neuron_encrypted(encrypted_neurons, round - 1, channel)) {
-                    for (size_t a = 0; a < shapes.kernal_sizes[round]; ++a) {
-                        for (size_t b = 0; b < shapes.kernal_sizes[round]; ++b) {
+                    for (size_t a = 0; a < shape.kernal_sizes[round]; ++a) {
+                        for (size_t b = 0; b < shape.kernal_sizes[round]; ++b) {
                             auto input_values = get<vector<double>>(input[get_index(
-                                shapes.conv_input[round],
+                                shape.conv_input[round],
                                 {0, channel, output_indexes[i][2] + a, output_indexes[i][3] + b})]);
                             Plaintext input_plain;
                             seal.encoder_.encode(input_values, SCALE, input_plain);
 
                             auto weight_cipher = get<Ciphertext>(weight[get_index(
-                                shapes.conv_weight[round], {output_indexes[i][1], channel, a, b})]);
+                                shape.conv_weight[round], {output_indexes[i][1], channel, a, b})]);
 
                             seal.evaluator_.multiply_plain_inplace(weight_cipher, input_plain);
                             seal.evaluator_.rescale_to_next_inplace(weight_cipher);
@@ -180,14 +187,14 @@ void thread_conv_worker(
                         }
                     }
                 } else {
-                    for (size_t a = 0; a < shapes.kernal_sizes[round]; ++a) {
-                        for (size_t b = 0; b < shapes.kernal_sizes[round]; ++b) {
+                    for (size_t a = 0; a < shape.kernal_sizes[round]; ++a) {
+                        for (size_t b = 0; b < shape.kernal_sizes[round]; ++b) {
                             auto input_cipher = get<Ciphertext>(input[get_index(
-                                shapes.conv_input[round],
+                                shape.conv_input[round],
                                 {0, channel, output_indexes[i][2] + a, output_indexes[i][3] + b})]);
 
                             auto weight_cipher = get<Ciphertext>(weight[get_index(
-                                shapes.conv_weight[round], {output_indexes[i][1], channel, a, b})]);
+                                shape.conv_weight[round], {output_indexes[i][1], channel, a, b})]);
 
                             degrade_cipher_levels(seal, weight_cipher, 3);
 
@@ -203,7 +210,7 @@ void thread_conv_worker(
             }
 
             result[get_index(
-                shapes.conv_output[round],
+                shape.conv_output[round],
                 {0, output_indexes[i][1], output_indexes[i][2], output_indexes[i][3]})] = move(sum);
         }
     }
@@ -216,7 +223,7 @@ void thread_conv(
     const vector<variant<double, Ciphertext>> &weight,
     Ciphertext bias,
     vector<variant<vector<double>, Ciphertext>> &result,
-    MNIST_Shape shapes,
+    Shape shape,
     size_t round) {
     const size_t processor_count = thread::hardware_concurrency();
     vector<size_t> threads_task_count(processor_count, output_indexes.size() / processor_count);
@@ -233,7 +240,7 @@ void thread_conv(
             cref(weight),
             bias,
             ref(result),
-            shapes,
+            shape,
             round,
             beginnig,
             beginnig + threads_task_count[i]);
@@ -248,220 +255,220 @@ void thread_conv(
 vector<variant<vector<double>, Ciphertext>> conv(
     string dataset,
     SEALPACK &seal,
-    MNIST_Shape shapes,
+    Shape shapes,
     int round,
     vector<variant<vector<double>, Ciphertext>> &input,
     json encrypted_neurons,
     mode work_mode) {
-    if (dataset == string("MNIST")) {
-        auto conv_weight = read_conv_weight(dataset, seal, round, encrypted_neurons, work_mode);
-        auto conv_bias = read_conv_bias(dataset, seal, round, encrypted_neurons, work_mode);
-
-        size_t kernal_size = shapes.kernal_sizes[round];
-        array<size_t, 4> output_shape = shapes.conv_output[round];
-        const size_t batch_size = output_shape[0];
-
-        size_t output_size = 1;
-        for (size_t i = 1; i < output_shape.size(); ++i) {
-            output_size *= output_shape[i];
-        }
-        vector<variant<vector<double>, Ciphertext>> output(output_size);
-
-        if (round == 1) {
-            for (size_t i = 0; i < output_shape[1]; ++i) {
-                if (is_neuron_encrypted(encrypted_neurons, round, i)) {
-                    if (work_mode == remove_) {
-                        for (size_t j = 0; j < output_shape[2]; ++j) {
-                            for (size_t k = 0; k < output_shape[3]; ++k) {
-                                output[get_index(output_shape, {0, i, j, k})] =
-                                    vector<double>(batch_size);
-                            }
-                        }
-                        continue;
-                    }
-
-                    auto bias = std::get<Ciphertext>(conv_bias[i]);
-
-                    vector<array<size_t, 4>> work_indexes;
+    cout << __LINE__ << endl;
+    auto conv_weight = read_conv_weight(dataset, seal, round, encrypted_neurons, work_mode);
+    auto conv_bias = read_conv_bias(dataset, seal, round, encrypted_neurons, work_mode);
+    // exit(0);
+    cout << __LINE__ << endl;
+    size_t kernal_size = shapes.kernal_sizes[round];
+    array<size_t, 4> output_shape = shapes.conv_output[round];
+    const size_t batch_size = output_shape[0];
+    cout << __LINE__ << endl;
+    size_t output_size = 1;
+    for (size_t i = 1; i < output_shape.size(); ++i) {
+        output_size *= output_shape[i];
+    }
+    vector<variant<vector<double>, Ciphertext>> output(output_size);
+    cout << __LINE__ << endl;
+    if (round == 1) {
+        for (size_t i = 0; i < output_shape[1]; ++i) {
+            cout << __LINE__ << endl;
+            if (is_neuron_encrypted(encrypted_neurons, round, i)) {
+                cout << __LINE__ << endl;
+                if (work_mode == remove_) {
                     for (size_t j = 0; j < output_shape[2]; ++j) {
                         for (size_t k = 0; k < output_shape[3]; ++k) {
-                            work_indexes.emplace_back(array<size_t, 4>{0, i, j, k});
+                            output[get_index(output_shape, {0, i, j, k})] =
+                                vector<double>(batch_size);
                         }
                     }
-
-                    thread_conv(
-                        seal, work_indexes, input, conv_weight, bias, output, shapes, round);
-
-                } else {
-                    for (size_t j = 0; j < output_shape[2]; ++j) {
-                        for (size_t k = 0; k < output_shape[3]; ++k) {
-                            double bias = get<double>(conv_bias[i]);
-                            vector<double> multiplied_result(batch_size, bias);
-                            for (size_t a = 0; a < kernal_size; ++a) {
-                                for (size_t b = 0; b < kernal_size; ++b) {
-                                    auto input_values = get<vector<double>>(input[get_index(
-                                        shapes.conv_input[1], {0, 0, j + a, k + b})]);
-                                    double weight_value = get<double>(conv_weight[get_index(
-                                        shapes.conv_weight[1], {i, 0, a, b})]);
-                                    for (size_t l = 0; l < batch_size; ++l) {
-                                        multiplied_result[l] += input_values[l] * weight_value;
-                                    }
+                    continue;
+                }
+                cout << __LINE__ << endl;
+                auto bias = std::get<Ciphertext>(conv_bias[i]);
+                cout << __LINE__ << endl;
+                vector<array<size_t, 4>> work_indexes;
+                for (size_t j = 0; j < output_shape[2]; ++j) {
+                    for (size_t k = 0; k < output_shape[3]; ++k) {
+                        work_indexes.emplace_back(array<size_t, 4>{0, i, j, k});
+                    }
+                }
+                cout << __LINE__ << endl;
+                thread_conv(seal, work_indexes, input, conv_weight, bias, output, shapes, round);
+                cout << __LINE__ << endl;
+            } else {
+                cout << __LINE__ << endl;
+                for (size_t j = 0; j < output_shape[2]; ++j) {
+                    for (size_t k = 0; k < output_shape[3]; ++k) {
+                        cout << __LINE__ << endl;
+                        cout << conv_bias.size() << " " << i << endl;
+                        double bias = get<double>(conv_bias[i]);
+                        cout << __LINE__ << endl;
+                        vector<double> multiplied_result(batch_size, bias);
+                        cout << __LINE__ << endl;
+                        for (size_t a = 0; a < kernal_size; ++a) {
+                            for (size_t b = 0; b < kernal_size; ++b) {
+                                cout << __LINE__ << endl;
+                                auto input_values = get<vector<double>>(
+                                    input[get_index(shapes.conv_input[1], {0, 0, j + a, k + b})]);
+                                cout << __LINE__ << "|" << i << 0 << a << b << endl;
+                                double weight_value = get<double>(
+                                    conv_weight[get_index(shapes.conv_weight[1], {i, 0, a, b})]);
+                                cout << __LINE__ << endl;
+                                for (size_t l = 0; l < batch_size; ++l) {
+                                    multiplied_result[l] += input_values[l] * weight_value;
                                 }
+                                cout << __LINE__ << endl;
                             }
-
-                            output[get_index(output_shape, {0, i, j, k})] = move(multiplied_result);
                         }
+
+                        output[get_index(output_shape, {0, i, j, k})] = move(multiplied_result);
                     }
                 }
             }
-        } else {
-            for (size_t i = 0; i < output_shape[1]; ++i) {
-                if (is_neuron_encrypted(encrypted_neurons, round, i)) {
-                    if (work_mode == remove_) {
-                        for (size_t j = 0; j < output_shape[2]; ++j) {
-                            for (size_t k = 0; k < output_shape[3]; ++k) {
-                                output[get_index(output_shape, {0, i, j, k})] =
-                                    vector<double>(batch_size);
-                            }
-                        }
-                        continue;
-                    }
-
-                    Ciphertext bias = get<Ciphertext>(conv_bias[i]);
-
-                    vector<array<size_t, 4>> work_indexes;
+        }
+    } else {
+        cout << __LINE__ << endl;
+        for (size_t i = 0; i < output_shape[1]; ++i) {
+            cout << __LINE__ << endl;
+            if (is_neuron_encrypted(encrypted_neurons, round, i)) {
+                cout << __LINE__ << endl;
+                if (work_mode == remove_) {
+                    cout << __LINE__ << endl;
                     for (size_t j = 0; j < output_shape[2]; ++j) {
                         for (size_t k = 0; k < output_shape[3]; ++k) {
-                            work_indexes.emplace_back(array<size_t, 4>{0, i, j, k});
+                            output[get_index(output_shape, {0, i, j, k})] =
+                                vector<double>(batch_size);
                         }
                     }
+                    continue;
+                }
 
-                    thread_conv(
-                        seal, work_indexes, input, conv_weight, bias, output, shapes, round);
-                } else {
-                    for (size_t j = 0; j < output_shape[2]; ++j) {
-                        for (size_t k = 0; k < output_shape[3]; ++k) {
-                            double bias = get<double>(conv_bias[i]);
-                            vector<double> multiplied_result(batch_size, bias);
-                            for (size_t channel = 0; channel < shapes.conv_output[1][1];
-                                 ++channel) {
-                                if (!is_neuron_encrypted(encrypted_neurons, round - 1, channel)) {
-                                    for (size_t a = 0; a < kernal_size; ++a) {
-                                        for (size_t b = 0; b < kernal_size; ++b) {
-                                            auto input_values = get<vector<double>>(input[get_index(
-                                                shapes.conv_input[round],
-                                                {0, channel, j + a, k + b})]);
-                                            double weight_value = get<double>(conv_weight[get_index(
-                                                shapes.conv_weight[round], {i, channel, a, b})]);
-                                            for (size_t l = 0; l < batch_size; ++l) {
-                                                multiplied_result[l] +=
-                                                    input_values[l] * weight_value;
-                                            }
+                Ciphertext bias = get<Ciphertext>(conv_bias[i]);
+
+                vector<array<size_t, 4>> work_indexes;
+                for (size_t j = 0; j < output_shape[2]; ++j) {
+                    for (size_t k = 0; k < output_shape[3]; ++k) {
+                        work_indexes.emplace_back(array<size_t, 4>{0, i, j, k});
+                    }
+                }
+
+                thread_conv(seal, work_indexes, input, conv_weight, bias, output, shapes, round);
+            } else {
+                for (size_t j = 0; j < output_shape[2]; ++j) {
+                    for (size_t k = 0; k < output_shape[3]; ++k) {
+                        double bias = get<double>(conv_bias[i]);
+                        vector<double> multiplied_result(batch_size, bias);
+                        for (size_t channel = 0; channel < shapes.conv_output[1][1]; ++channel) {
+                            if (!is_neuron_encrypted(encrypted_neurons, round - 1, channel)) {
+                                for (size_t a = 0; a < kernal_size; ++a) {
+                                    for (size_t b = 0; b < kernal_size; ++b) {
+                                        auto input_values = get<vector<double>>(input[get_index(
+                                            shapes.conv_input[round], {0, channel, j + a, k + b})]);
+                                        double weight_value = get<double>(conv_weight[get_index(
+                                            shapes.conv_weight[round], {i, channel, a, b})]);
+                                        for (size_t l = 0; l < batch_size; ++l) {
+                                            multiplied_result[l] += input_values[l] * weight_value;
                                         }
                                     }
                                 }
                             }
-
-                            output[get_index(output_shape, {0, i, j, k})] = move(multiplied_result);
                         }
+
+                        output[get_index(output_shape, {0, i, j, k})] = move(multiplied_result);
                     }
                 }
             }
         }
-
-        return output;
-    } else {
-        exit(0);
     }
 
-    return vector<variant<vector<double>, Ciphertext>>();
+    return output;
 }
 
 vector<variant<vector<double>, Ciphertext>> avg_pool(
     string dataset,
     SEALPACK &seal,
-    MNIST_Shape shapes,
+    Shape shapes,
     int round,
     vector<variant<vector<double>, Ciphertext>> &input) {
-    if (dataset == string("MNIST")) {
-        auto input_shape = shapes.pool_input[round];
-        auto output_shape = shapes.pool_output[round];
-        size_t output_size = 1;
-        for (size_t i = 1; i < output_shape.size(); ++i) {
-            output_size *= output_shape[i];
-        }
-        vector<variant<vector<double>, Ciphertext>> output(output_size);
 
-        Plaintext quarter_plain;
-        seal.encoder_.encode(0.25, SCALE, quarter_plain);
+    auto input_shape = shapes.pool_input[round];
+    auto output_shape = shapes.pool_output[round];
+    size_t output_size = 1;
+    for (size_t i = 1; i < output_shape.size(); ++i) {
+        output_size *= output_shape[i];
+    }
+    vector<variant<vector<double>, Ciphertext>> output(output_size);
 
-        const size_t batch_size = output_shape[0];
+    Plaintext quarter_plain;
+    seal.encoder_.encode(0.25, SCALE, quarter_plain);
 
-        for (size_t i = 0; i < output_shape[1]; ++i) {
-            for (size_t j = 0; j < output_shape[2]; ++j) {
-                for (size_t k = 0; k < output_shape[3]; ++k) {
-                    if (get_if<Ciphertext>(&input[get_index(input_shape, {0, i, j * 2, k * 2})]) !=
-                        nullptr) {
-                        auto cipher_one =
-                            get<Ciphertext>(input[get_index(input_shape, {0, i, j * 2, k * 2})]);
-                        auto cipher_two = get<Ciphertext>(
-                            input[get_index(input_shape, {0, i, j * 2 + 1, k * 2})]);
-                        auto cipher_three = get<Ciphertext>(
-                            input[get_index(input_shape, {0, i, j * 2, k * 2 + 1})]);
-                        auto cipher_four = get<Ciphertext>(
-                            input[get_index(input_shape, {0, i, j * 2 + 1, k * 2 + 1})]);
+    const size_t batch_size = output_shape[0];
 
-                        seal.evaluator_.add_inplace(cipher_one, cipher_two);
-                        seal.evaluator_.add_inplace(cipher_three, cipher_four);
-                        seal.evaluator_.add_inplace(cipher_one, cipher_three);
+    for (size_t i = 0; i < output_shape[1]; ++i) {
+        for (size_t j = 0; j < output_shape[2]; ++j) {
+            for (size_t k = 0; k < output_shape[3]; ++k) {
+                if (get_if<Ciphertext>(&input[get_index(input_shape, {0, i, j * 2, k * 2})]) !=
+                    nullptr) {
+                    auto cipher_one =
+                        get<Ciphertext>(input[get_index(input_shape, {0, i, j * 2, k * 2})]);
+                    auto cipher_two =
+                        get<Ciphertext>(input[get_index(input_shape, {0, i, j * 2 + 1, k * 2})]);
+                    auto cipher_three =
+                        get<Ciphertext>(input[get_index(input_shape, {0, i, j * 2, k * 2 + 1})]);
+                    auto cipher_four = get<Ciphertext>(
+                        input[get_index(input_shape, {0, i, j * 2 + 1, k * 2 + 1})]);
 
-                        parms_id_type last_parms_id = cipher_one.parms_id();
-                        seal.evaluator_.mod_switch_to_inplace(quarter_plain, last_parms_id);
+                    seal.evaluator_.add_inplace(cipher_one, cipher_two);
+                    seal.evaluator_.add_inplace(cipher_three, cipher_four);
+                    seal.evaluator_.add_inplace(cipher_one, cipher_three);
 
-                        seal.evaluator_.multiply_plain_inplace(cipher_one, quarter_plain);
-                        seal.evaluator_.rescale_to_next_inplace(cipher_one);
+                    parms_id_type last_parms_id = cipher_one.parms_id();
+                    seal.evaluator_.mod_switch_to_inplace(quarter_plain, last_parms_id);
 
-                        output[get_index(output_shape, {0, i, j, k})] = cipher_one;
-                    } else {
-                        vector<double> values(batch_size);
-                        for (size_t l = 0; l < batch_size; ++l) {
-                            double pool_sum = 0;
+                    seal.evaluator_.multiply_plain_inplace(cipher_one, quarter_plain);
+                    seal.evaluator_.rescale_to_next_inplace(cipher_one);
 
-                            pool_sum += get<vector<double>>(
-                                input[get_index(input_shape, {0, i, j * 2, k * 2})])[l];
-                            pool_sum += get<vector<double>>(
-                                input[get_index(input_shape, {0, i, j * 2, k * 2 + 1})])[l];
-                            pool_sum += get<vector<double>>(
-                                input[get_index(input_shape, {0, i, j * 2 + 1, k * 2})])[l];
-                            pool_sum += get<vector<double>>(
-                                input[get_index(input_shape, {0, i, j * 2 + 1, k * 2 + 1})])[l];
+                    output[get_index(output_shape, {0, i, j, k})] = cipher_one;
+                } else {
+                    vector<double> values(batch_size);
+                    for (size_t l = 0; l < batch_size; ++l) {
+                        double pool_sum = 0;
 
-                            double pool_average = pool_sum / 4;
-                            values[l] = pool_average;
-                        }
+                        pool_sum += get<vector<double>>(
+                            input[get_index(input_shape, {0, i, j * 2, k * 2})])[l];
+                        pool_sum += get<vector<double>>(
+                            input[get_index(input_shape, {0, i, j * 2, k * 2 + 1})])[l];
+                        pool_sum += get<vector<double>>(
+                            input[get_index(input_shape, {0, i, j * 2 + 1, k * 2})])[l];
+                        pool_sum += get<vector<double>>(
+                            input[get_index(input_shape, {0, i, j * 2 + 1, k * 2 + 1})])[l];
 
-                        output[get_index(output_shape, {0, i, j, k})] = move(values);
+                        double pool_average = pool_sum / 4;
+                        values[l] = pool_average;
                     }
+
+                    output[get_index(output_shape, {0, i, j, k})] = move(values);
                 }
             }
         }
-
-        return output;
-    } else {
-        return vector<variant<vector<double>, Ciphertext>>();
     }
+
+    return output;
 }
 
 vector<variant<vector<double>, Ciphertext>> recombine_input(
     const array<size_t, 4> input_shape,
     const double *input_data) {
-    size_t block_size = 1;
-    for (size_t i = 1; i < input_shape.size(); ++i) {
-        block_size *= input_shape[i];
-    }
-
     size_t batch_size = input_shape[0];
+    size_t block_size = input_shape[1] * input_shape[2] * input_shape[3];
     vector<variant<vector<double>, Ciphertext>> result(block_size);
+
     for (size_t i = 0; i < block_size; ++i) {
         auto batch_values = vector<double>(batch_size);
         for (size_t j = 0; j < batch_size; ++j) {
@@ -500,25 +507,25 @@ void square_activate(
     string dataset,
     SEALPACK &seal,
     vector<variant<vector<double>, Ciphertext>> &input) {
-    if (dataset == string("MNIST")) {
-        for (size_t i = 0; i < input.size(); ++i) {
-            if (get_if<Ciphertext>(&input[i]) != nullptr) {
-                Ciphertext input_cipher = get<Ciphertext>(input[i]);
-                seal.evaluator_.square_inplace(input_cipher);
-                seal.evaluator_.relinearize_inplace(input_cipher, seal.relin_keys_);
-                seal.evaluator_.rescale_to_next_inplace(input_cipher);
-                input[i] = input_cipher;
-            } else {
-                vector<double> values = get<vector<double>>(input[i]);
-                for (size_t j = 0; j < values.size(); ++j) {
-                    values[j] = values[j] * values[j];
-                }
-
-                input[i] = values;
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (get_if<Ciphertext>(&input[i]) != nullptr) {
+            Ciphertext input_cipher = get<Ciphertext>(input[i]);
+            seal.evaluator_.square_inplace(input_cipher);
+            seal.evaluator_.relinearize_inplace(input_cipher, seal.relin_keys_);
+            seal.evaluator_.rescale_to_next_inplace(input_cipher);
+            input[i] = input_cipher;
+        } else {
+            vector<double> values = get<vector<double>>(input[i]);
+            cout << values.size() << endl;
+            // exit(0);
+            for (size_t j = 0; j < values.size(); ++j) {
+                values[j] = values[j] * values[j];
+                // cout << values[j] << " ";
             }
+            // exit(0);
+
+            input[i] = values;
         }
-    } else {
-        exit(1);
     }
 }
 
@@ -618,7 +625,7 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
         MNIST_path + files_prefix + string("_fc") + to_string(round) + string("_bias_full");
 
     size_t fc_weight_poi = 0;
-    MNIST_Shape shapes;
+    auto shapes = Shapes[(string("MNIST"))];
     auto weight_shape = shapes.fc_weight[round];
 
     auto bias_data = read_fc_bias(seal, fc_bias_path, weight_shape[1]);
@@ -646,18 +653,31 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
 }
 
 void worker(char *dataset, int batch_size, double *input_data, mode work_mode = separate_) {
+    cout << __LINE__ << endl;
     SEALPACK seal(work_mode);
-    auto shapes = get_MNIST_shapes(batch_size);
+    cout << __LINE__ << endl;
+    auto shape = Shapes[string(dataset)];
+    update_shape_size(shape, batch_size);
+    cout << __LINE__ << endl;
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
-    auto input = recombine_input(shapes.conv_input[1], input_data);
+    cout << __LINE__ << endl;
+    auto input = recombine_input(shape.conv_input[1], input_data);
+    auto pool = get<vector<double>>(input[0]);
+    cout << "input" << pool.size() << endl;
+    // exit(0);
+    cout << __LINE__ << endl;
 
-    for (size_t round = 1; round <= shapes.conv_input.size(); ++round) {
-        auto conv_result = conv(dataset, seal, shapes, round, input, encrypted_neurons, work_mode);
+    for (size_t round = 1; round <= shape.conv_input.size(); ++round) {
+        cout << __LINE__ << endl;
+        auto conv_result = conv(dataset, seal, shape, round, input, encrypted_neurons, work_mode);
+
+        cout << __LINE__ << endl;
         if (round == 2) {
             if (work_mode == separate_ or work_mode == remove_) {
+                cout << __LINE__ << endl;
                 save_worker_result(dataset, conv_result);
             } else {
-                auto avg_pool_result = avg_pool(dataset, seal, shapes, round, conv_result);
+                auto avg_pool_result = avg_pool(dataset, seal, shape, round, conv_result);
                 square_activate(dataset, seal, avg_pool_result);
 
                 vector<Ciphertext> fc_input;
@@ -674,8 +694,12 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
                 save_fc_result(dataset, fc3_output);
             }
         } else {
-            auto avg_pool_result = avg_pool(dataset, seal, shapes, round, conv_result);
+            cout << __LINE__ << endl;
+            auto avg_pool_result = avg_pool(dataset, seal, shape, round, conv_result);
+
+            cout << __LINE__ << endl;
             square_activate(dataset, seal, avg_pool_result);
+            cout << __LINE__ << endl;
             input = move(avg_pool_result);
         }
     }

@@ -1,6 +1,21 @@
 #include "utils.h"
 
 extern "C" {
+
+void update_shape_size(Shape &shape, size_t batch_size) {
+    shape.conv_input[1][0] = batch_size;
+    shape.conv_input[2][0] = batch_size;
+
+    shape.conv_output[1][0] = batch_size;
+    shape.conv_output[2][0] = batch_size;
+
+    shape.pool_input[1][0] = batch_size;
+    shape.pool_input[2][0] = batch_size;
+
+    shape.pool_output[1][0] = batch_size;
+    shape.pool_output[2][0] = batch_size;
+}
+
 json get_encrypted_neurons_list(string dataset) {
     const static string NEURONS_LIST_PATH = string(PROJECT_PATH) + string("saved_models/") +
         dataset + ("/inference_encrypted_neurons.json");
@@ -54,13 +69,13 @@ EncryptionParameters read_parms(mode work_mode) {
     if (work_mode == full_) {
         PARMS_PATH += string("_full");
     }
-    cout << __LINE__ << ":" << work_mode << "|" << PARMS_PATH << endl;
+
     EncryptionParameters parms;
     ifstream parms_stream;
     parms_stream.open(PARMS_PATH, ios::in | ios::binary);
     parms.load(parms_stream);
     parms_stream.close();
-    cout << __LINE__ << endl;
+
     return parms;
 }
 
@@ -87,7 +102,7 @@ SecretKey read_secret_key(mode work_mode) {
     if (work_mode == full_) {
         SECRET_KEY_PATH += string("_full");
     }
-    cout << __LINE__ << ":" << work_mode << "|" << SECRET_KEY_PATH << endl;
+
     SecretKey secret_key;
     auto parms = read_parms(work_mode);
     SEALContext context(parms);
@@ -96,24 +111,7 @@ SecretKey read_secret_key(mode work_mode) {
     secret_key_stream.open(SECRET_KEY_PATH, ios::in | ios::binary);
     secret_key.load(context, secret_key_stream);
     secret_key_stream.close();
-    cout << __LINE__ << endl;
+
     return secret_key;
-}
-
-MNIST_Shape get_MNIST_shapes(int batch_size) {
-    MNIST_Shape shapes;
-    shapes.conv_input[1][0] = batch_size;
-    shapes.conv_input[2][0] = batch_size;
-
-    shapes.conv_output[1][0] = batch_size;
-    shapes.conv_output[2][0] = batch_size;
-
-    shapes.pool_input[1][0] = batch_size;
-    shapes.pool_input[2][0] = batch_size;
-
-    shapes.pool_output[1][0] = batch_size;
-    shapes.pool_output[2][0] = batch_size;
-
-    return shapes;
 }
 }

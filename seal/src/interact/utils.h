@@ -13,22 +13,51 @@ using namespace configor;
 using namespace seal;
 
 extern "C" {
-struct MNIST_Shape {
-    unordered_map<size_t, size_t> kernal_sizes = {{0, 0}, {1, 5}, {2, 5}};
-    unordered_map<size_t, array<size_t, 4>> conv_input = {{1, {1, 1, 28, 28}}, {2, {1, 6, 12, 12}}};
-    unordered_map<size_t, array<size_t, 4>> conv_output = {{1, {1, 6, 24, 24}}, {2, {1, 16, 8, 8}}};
-    unordered_map<size_t, array<size_t, 4>> conv_weight = {{1, {6, 1, 5, 5}}, {2, {16, 6, 5, 5}}};
-    unordered_map<size_t, size_t> conv_bias = {{0, 0}, {1, 6}, {2, 16}};
-    unordered_map<size_t, array<size_t, 4>> pool_input = {{1, {1, 6, 24, 24}}, {2, {1, 16, 8, 8}}};
-    unordered_map<size_t, array<size_t, 4>> pool_output = {{1, {1, 6, 12, 12}}, {2, {1, 16, 4, 4}}};
-    unordered_map<size_t, array<size_t, 2>> fc_weight = {
-        {1, {256, 120}},
-        {2, {120, 84}},
-        {3, {84, 10}}};
-    unordered_map<size_t, size_t> fc_bias = {{1, 120}, {2, 84}, {3, 10}};
+
+struct Shape {
+    unordered_map<size_t, size_t> kernal_sizes;
+    unordered_map<size_t, array<size_t, 4>> conv_input;
+    unordered_map<size_t, array<size_t, 4>> conv_output;
+    unordered_map<size_t, array<size_t, 4>> conv_weight;
+    unordered_map<size_t, size_t> conv_bias;
+    unordered_map<size_t, array<size_t, 4>> pool_input;
+    unordered_map<size_t, array<size_t, 4>> pool_output;
+    unordered_map<size_t, array<size_t, 2>> fc_weight;
+    unordered_map<size_t, size_t> fc_bias;
 };
 
+const Shape mnist{
+    {{1, 5}, {2, 5}},
+    {{1, {1, 1, 28, 28}}, {2, {1, 6, 12, 12}}},
+    {{1, {1, 6, 24, 24}}, {2, {1, 16, 8, 8}}},
+    {{1, {6, 1, 5, 5}}, {2, {16, 6, 5, 5}}},
+    {{1, 6}, {2, 16}},
+    {{1, {1, 6, 24, 24}}, {2, {1, 16, 8, 8}}},
+    {{1, {1, 6, 12, 12}}, {2, {1, 16, 4, 4}}},
+    {{1, {256, 120}}, {2, {120, 84}}, {3, {84, 10}}},
+    {{1, 120}, {2, 84}, {3, 10}}};
+
+const Shape emnist{
+    {{1, 5}, {2, 5}},
+    {{1, {1, 1, 28, 28}}, {2, {1, 10, 12, 12}}},
+    {{1, {1, 10, 24, 24}}, {2, {1, 20, 8, 8}}},
+    {{1, {10, 1, 5, 5}}, {2, {20, 10, 5, 5}}},
+    {{1, 10}, {2, 20}},
+    {{1, {1, 10, 24, 24}}, {2, {1, 20, 8, 8}}},
+    {{1, {1, 10, 12, 12}}, {2, {1, 20, 4, 4}}},
+};
+
+static unordered_map<string, struct Shape> Shapes{
+    {string("MNIST"), mnist},
+    {string("EMNIST"), emnist},
+    //{"GTSRB", gtsrb},
+    //{"CIAFR10", cifar10}
+};
+
+void update_shape_size(Shape &shape, size_t batch_size);
+
 const static string DATA_PATH = string(PROJECT_PATH) + string("/seal/data/");
+
 const double SCALE = pow(2.0, 40);
 enum mode { separate_, remove_, full_ };
 
@@ -41,13 +70,10 @@ void save_keys(mode work_mode);
 EncryptionParameters read_parms(mode work_mode);
 SecretKey read_secret_key(mode work_mode);
 
-MNIST_Shape get_MNIST_shapes(int batch_size);
-
 class SEALPACK {
 public:
     SEALPACK(mode work_mode) : work_mode_(work_mode) {
         keygen_.create_relin_keys(relin_keys_);
-        cout << __LINE__ << "|" << work_mode_ << endl;
     }
     mode work_mode_;
     EncryptionParameters parms_ = read_parms(work_mode_);

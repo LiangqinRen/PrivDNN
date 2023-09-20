@@ -51,7 +51,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     save_parms(work_mode);
     save_keys(work_mode);
 
-    MNIST_Shape shapes;
+    auto shape = Shapes[string(dataset)];
     const string dataset_path = DATA_PATH + string(dataset) + string("/");
 
     auto parms = read_parms(work_mode);
@@ -75,7 +75,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
     conv1_weight_outstream.open(conv1_weight_path, ios::out | ios::binary);
 
-    auto conv1_weight_shape = shapes.conv_weight[1];
+    auto conv1_weight_shape = shape.conv_weight[1];
     size_t conv1_weight_size = 1;
     for (size_t i = 1; i < conv1_weight_shape.size(); ++i) {
         conv1_weight_size *= conv1_weight_shape[i];
@@ -105,13 +105,15 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
     conv1_bias_outstream.open(conv1_bias_path, ios::out | ios::binary);
 
-    auto conv1_bias_shape = shapes.conv_bias[1];
+    auto conv1_bias_shape = shape.conv_bias[1];
     for (size_t i = 0; i < conv1_bias_shape; ++i) {
         if (is_neuron_encrypted(encryped_neurons, 1, i)) {
+            cout << __LINE__ << endl;
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
             temp_cipher.save(conv1_bias_outstream);
         } else {
+            cout << __LINE__ << endl;
             double temp_number = trained_data[trained_data_index];
             conv1_bias_outstream.write(
                 reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
@@ -129,7 +131,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
     conv2_weight_outstream.open(conv2_weight_path, ios::out | ios::binary);
 
-    auto conv2_weight_shape = shapes.conv_weight[2];
+    auto conv2_weight_shape = shape.conv_weight[2];
     size_t conv2_weight_size = 1;
     for (size_t i = 1; i < conv2_weight_shape.size(); ++i) {
         conv2_weight_size *= conv2_weight_shape[i];
@@ -160,7 +162,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
     conv2_bias_outstream.open(conv2_bias_path, ios::out | ios::binary);
 
-    auto conv2_bias_shape = shapes.conv_bias[2];
+    auto conv2_bias_shape = shape.conv_bias[2];
     for (size_t i = 0; i < conv2_bias_shape; ++i) {
         if (is_neuron_encrypted(encryped_neurons, 2, i)) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
@@ -185,7 +187,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         }
         fc1_weight_outstream.open(fc1_weight_path, ios::out | ios::binary);
 
-        auto fc1_weight_shape = shapes.fc_weight[1];
+        auto fc1_weight_shape = shape.fc_weight[1];
         size_t fc1_weight_size = fc1_weight_shape[0] * fc1_weight_shape[1];
         for (size_t i = 0; i < fc1_weight_size; ++i) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
@@ -203,7 +205,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         }
         fc1_bias_outstream.open(fc1_bias_path, ios::out | ios::binary);
 
-        size_t fc1_bias_size = shapes.fc_bias[1];
+        size_t fc1_bias_size = shape.fc_bias[1];
         for (size_t i = 0; i < fc1_bias_size; ++i) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
@@ -220,7 +222,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         }
         fc2_weight_outstream.open(fc2_weight_path, ios::out | ios::binary);
 
-        auto fc2_weight_shape = shapes.fc_weight[2];
+        auto fc2_weight_shape = shape.fc_weight[2];
         size_t fc2_weight_size = fc2_weight_shape[0] * fc2_weight_shape[1];
         for (size_t i = 0; i < fc2_weight_size; ++i) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
@@ -238,7 +240,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         }
         fc2_bias_outstream.open(fc2_bias_path, ios::out | ios::binary);
 
-        size_t fc2_bias_size = shapes.fc_bias[2];
+        size_t fc2_bias_size = shape.fc_bias[2];
         for (size_t i = 0; i < fc2_bias_size; ++i) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
@@ -255,7 +257,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         }
         fc3_weight_outstream.open(fc3_weight_path, ios::out | ios::binary);
 
-        auto fc3_weight_shape = shapes.fc_weight[3];
+        auto fc3_weight_shape = shape.fc_weight[3];
         size_t fc3_weight_size = fc3_weight_shape[0] * fc3_weight_shape[1];
         for (size_t i = 0; i < fc3_weight_size; ++i) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
@@ -273,7 +275,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         }
         fc3_bias_outstream.open(fc3_bias_path, ios::out | ios::binary);
 
-        size_t fc3_bias_size = shapes.fc_bias[3];
+        size_t fc3_bias_size = shape.fc_bias[3];
         for (size_t i = 0; i < fc3_bias_size; ++i) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
@@ -332,44 +334,43 @@ vector<double> read_conv_result(
     array<size_t, 4> output_shape,
     size_t output_size,
     mode work_mode) {
-    if (dataset == string("MNIST")) {
-        const string result_path =
-            DATA_PATH + string("communication/") + dataset + string("_conv2_result");
 
-        ifstream result_stream;
-        result_stream.open(result_path, ios::in | ios::binary);
-        vector<double> output(output_size);
-        vector<double> decrypt_results(output_size);
+    const string result_path =
+        DATA_PATH + string("communication/") + dataset + string("_conv2_result");
 
-        auto encrypted_neurons = get_encrypted_neurons_list("MNIST");
-        const size_t batch_size = output_shape[0];
-        size_t block_size = output_shape[2] * output_shape[3];
-        for (size_t i = 0; i < output_size / output_shape[0];) {
-            if (is_neuron_encrypted(encrypted_neurons, 2, i / block_size) &&
-                work_mode == separate_) {
-                for (size_t j = 0; j < block_size; ++i, ++j) {
-                    seal.cipher_.load(seal.context_, result_stream);
-                    seal.decryptor_.decrypt(seal.cipher_, seal.plain_);
-                    seal.encoder_.decode(seal.plain_, decrypt_results);
-                    for (size_t k = 0; k < batch_size; ++k) {
-                        output[i + k * output_size / batch_size] = decrypt_results[k];
-                    }
-                }
-            } else {
-                for (size_t j = 0; j < block_size; ++i, ++j) {
-                    double value;
-                    for (size_t k = 0; k < batch_size; ++k) {
-                        result_stream.read(reinterpret_cast<char *>(&value), sizeof(double));
-                        output[i + k * output_size / batch_size] = value;
-                    }
+    ifstream result_stream;
+    result_stream.open(result_path, ios::in | ios::binary);
+    vector<double> output(output_size);
+    vector<double> decrypt_results(output_size);
+
+    auto encrypted_neurons = get_encrypted_neurons_list(dataset);
+    const size_t batch_size = output_shape[0];
+    size_t block_size = output_shape[2] * output_shape[3];
+    for (size_t i = 0; i < output_size / batch_size;) {
+        if (is_neuron_encrypted(encrypted_neurons, 2, i / block_size) && work_mode == separate_) {
+            cout << __LINE__ << endl;
+            for (size_t j = 0; j < block_size; ++i, ++j) {
+                seal.cipher_.load(seal.context_, result_stream);
+                seal.decryptor_.decrypt(seal.cipher_, seal.plain_);
+                seal.encoder_.decode(seal.plain_, decrypt_results);
+                for (size_t k = 0; k < batch_size; ++k) {
+                    output[i + k * output_size / batch_size] = decrypt_results[k];
                 }
             }
+        } else {
+            cout << __LINE__ << endl;
+            for (size_t j = 0; j < block_size; ++i, ++j) {
+                double value;
+                for (size_t k = 0; k < batch_size; ++k) {
+                    result_stream.read(reinterpret_cast<char *>(&value), sizeof(double));
+                    output[i + k * output_size / batch_size] = value;
+                }
+                // cout << value << " ";
+            }
         }
-        result_stream.close();
-        return output;
-    } else {
-        exit(1);
     }
+    result_stream.close();
+    return output;
 }
 
 vector<double> read_fc_result(SEALPACK &seal, array<size_t, 2> output_shape) {
@@ -397,16 +398,23 @@ vector<double> read_fc_result(SEALPACK &seal, array<size_t, 2> output_shape) {
 
 double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
     SEALPACK seal(work_mode);
-    auto shapes = get_MNIST_shapes(batch_size);
+    auto shapes = Shapes[string(dataset)];
+    update_shape_size(shapes, batch_size);
     size_t output_size = batch_size *
         (work_mode == full_
              ? 10
              : shapes.conv_output[2][1] * shapes.conv_output[2][2] * shapes.conv_output[2][3]);
-
+    cout << __LINE__ << endl;
     vector<double> final_result;
     if (work_mode == separate_ || work_mode == remove_) {
         final_result =
             read_conv_result(dataset, seal, shapes.conv_output[2], output_size, work_mode);
+
+        cout << final_result.size() << endl;
+        for (size_t i = 0; i < final_result.size(); ++i) {
+            cout << final_result[i] << " ";
+        }
+        // exit(0);
     } else {
         final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
     }

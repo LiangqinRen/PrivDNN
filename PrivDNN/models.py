@@ -150,14 +150,19 @@ class SplitNet(nn.Module):
                     torch.reshape(layer[0].layer.bias[i - 1], [1])
                 )
 
-    def _get_trained_data_pointer(self):
+    def _get_trained_data_pointer(self, dataset):
         layers = self.get_layers_list(include_fc_layers=True)
         trained_data_list = []
         for layer in layers:
             if isinstance(layer, list):
-                trained_data_list.extend(torch.flatten(layer[0].layer.weight).tolist())
-                trained_data_list.extend(torch.flatten(layer[0].layer.bias).tolist())
-            else:
+                if layer[0].layer_index == 1 or layer[0].layer_index == 2:
+                    trained_data_list.extend(
+                        torch.flatten(layer[0].layer.weight).tolist()
+                    )
+                    trained_data_list.extend(
+                        torch.flatten(layer[0].layer.bias).tolist()
+                    )
+            elif dataset == "MNIST":
                 # fc weight needs to be transposed, but we don't do that here
                 trained_data_list.extend(torch.flatten(layer.weight).tolist())
                 trained_data_list.extend(torch.flatten(layer.bias).tolist())
@@ -273,7 +278,7 @@ class SplitMNISTNet(SplitNet):
                     ctypes.c_int,
                 ]
 
-                trained_data_pointer = self._get_trained_data_pointer()
+                trained_data_pointer = self._get_trained_data_pointer("MNIST")
                 cpp_save_trained_data(
                     b"MNIST",
                     trained_data_pointer,
@@ -390,14 +395,85 @@ class SplitEMNISTNet(SplitNet):
             avg_pool1_output = torch.square(self.avg_pool_layer(conv1_output))
 
             conv2_output = self._conv(self.conv2_layers, avg_pool1_output)
-            avg_pool2_output = torch.square(self.avg_pool_layer(conv2_output))
+            avgpool2_output = torch.square(self.avg_pool_layer(conv2_output))
 
-            fc1_input = avg_pool2_output.reshape(avg_pool2_output.shape[0], -1)
-            fc1_output = torch.square(self.fc1_layer(fc1_input))
-            fc2_output = torch.square(self.fc2_layer(fc1_output))
+            fc1_input = avgpool2_output.reshape(avgpool2_output.shape[0], -1)
+            fc1_output = F.relu(self.fc1_layer(fc1_input))
+            fc2_output = F.relu(self.fc2_layer(fc1_output))
             output = self.fc3_layer(fc2_output)
         elif self.work_mode == WorkMode.cipher:
-            pass
+            work_mode = int(  # 0 separate, 1 remove
+                0 if self.cpp_work_mode == CppWorkMode.separate else 1
+            )
+
+            client_library = ctypes.CDLL("../seal/output/lib/libclient.so")
+            server_library = ctypes.CDLL("../seal/output/lib/libserver.so")
+
+            cpp_is_file_complete = server_library.is_file_complete
+            cpp_is_file_complete.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+            ]
+            cpp_is_file_complete.restype = ctypes.c_bool
+
+            if not cpp_is_file_complete(
+                b"EMNIST",
+                work_mode,
+            ):
+                print("Hello?")
+                cpp_save_trained_data = server_library.save_trained_data
+                cpp_save_trained_data.argtypes = [
+                    ctypes.c_char_p,
+                    ctypes.POINTER(ctypes.c_double),
+                    ctypes.c_int,
+                ]
+                print("Hello Again?")
+                trained_data_pointer = self._get_trained_data_pointer("EMNIST")
+                cpp_save_trained_data(
+                    b"EMNIST",
+                    trained_data_pointer,
+                    work_mode,
+                )
+
+            cpp_worker = client_library.worker
+            cpp_worker.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_double),
+                ctypes.c_int,
+            ]
+
+            input_list = torch.flatten(input).tolist()
+            input_pointer = (ctypes.c_double * len(input_list))(*input_list)
+            cpp_worker(b"EMNIST", input.shape[0], input_pointer, work_mode)
+
+            cpp_get_result = server_library.get_result
+            cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+            cpp_get_result.restype = ctypes.POINTER(ctypes.c_double)
+
+            if (
+                self.cpp_work_mode == CppWorkMode.separate
+                or self.cpp_work_mode == CppWorkMode.remove
+            ):
+                conv2_output = cpp_get_result(
+                    b"EMNIST",
+                    input.shape[0],
+                    work_mode,
+                )
+
+                conv2_output = [
+                    conv2_output[i] for i in range(input.shape[0] * 20 * 8 * 8)
+                ]
+                conv2_output = torch.reshape(
+                    torch.FloatTensor(conv2_output), [input.shape[0], 20, 8, 8]
+                ).cuda()
+
+                avgpool2_output = torch.square(self.avg_pool_layer(conv2_output))
+
+                fc1_input = avgpool2_output.reshape(avgpool2_output.shape[0], -1)
+                fc1_output = F.relu(self.fc1_layer(fc1_input))
+                fc2_output = F.relu(self.fc2_layer(fc1_output))
+                output = self.fc3_layer(fc2_output)
         else:
             raise Exception("SplitMNISTNet unknown work mode")
 
