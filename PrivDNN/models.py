@@ -420,14 +420,13 @@ class SplitEMNISTNet(SplitNet):
                 b"EMNIST",
                 work_mode,
             ):
-                print("Hello?")
                 cpp_save_trained_data = server_library.save_trained_data
                 cpp_save_trained_data.argtypes = [
                     ctypes.c_char_p,
                     ctypes.POINTER(ctypes.c_double),
                     ctypes.c_int,
                 ]
-                print("Hello Again?")
+
                 trained_data_pointer = self._get_trained_data_pointer("EMNIST")
                 cpp_save_trained_data(
                     b"EMNIST",
@@ -587,6 +586,7 @@ class SplitGTSRBNet(SplitNet):
         ):
             conv1_output = self._conv(self.conv1_layers, input)
             conv1_output = self.batch_normal1_layer(conv1_output)
+
             conv1_output = self._activate(conv1_output, [torch.square, F.relu])
             avg_pool1_output = self.avg_pool_layer(conv1_output)
 
@@ -595,15 +595,12 @@ class SplitGTSRBNet(SplitNet):
             conv2_output = F.relu(conv2_output)
             max_pool2_output = self.max_pool_layer(conv2_output)
 
-            # conv3_output = self._conv(self.conv3_layers, max_pool2_output)
             conv3_output = self.conv3_layers[0](max_pool2_output)
             conv3_output = F.relu(conv3_output)
 
-            # conv4_output = self._conv(self.conv4_layers, conv3_output)
             conv4_output = self.conv4_layers[0](conv3_output)
             conv4_output = F.relu(conv4_output)
 
-            # conv5_output = self._conv(self.conv5_layers, conv4_output)
             conv5_output = self.conv5_layers[0](conv4_output)
             conv5_output = F.relu(conv5_output)
             max_pool5_output = self.max_pool_layer(conv5_output)
@@ -613,7 +610,7 @@ class SplitGTSRBNet(SplitNet):
             fc2_output = self.dropout(F.relu(self.fc2_layer(fc1_output)))
             output = self.fc3_layer(fc2_output)
         else:
-            pass
+            raise Exception("SplitMNISTNet unknown work mode")
 
         return output
 
@@ -835,7 +832,6 @@ class SplitCIFAR10Net(SplitNet):
             or self.work_mode == WorkMode.recover
         ):
             conv1_output = self._conv(self.conv1_layers, input)
-
             bn1_output = self.batch_normal1_layer(conv1_output)
             bn1_output = self._activate(bn1_output, [torch.square, F.relu])
 
@@ -844,39 +840,32 @@ class SplitCIFAR10Net(SplitNet):
             bn2_output = F.relu(bn2_output)
             max_pool2_output = self.max_pool_layer(bn2_output)
 
-            # conv3_output = self._conv(self.conv3_layers, max_pool2_output)
             conv3_output = self.conv3_layers[0](max_pool2_output)
             bn3_output = self.batch_normal3_layer(conv3_output)
             bn3_output = F.relu(bn3_output)
 
-            # conv4_output = self._conv(self.conv4_layers, bn3_output)
             conv4_output = self.conv4_layers[0](bn3_output)
             bn4_output = self.batch_normal4_layer(conv4_output)
             bn4_output = F.relu(bn4_output)
             max_pool4_output = self.max_pool_layer(bn4_output)
 
-            # conv5_output = self._conv(self.conv5_layers, max_pool4_output)
             conv5_output = self.conv5_layers[0](max_pool4_output)
             bn5_output = self.batch_normal5_layer(conv5_output)
             bn5_output = F.relu(bn5_output)
 
-            # conv6_output = self._conv(self.conv6_layers, bn5_output)
             conv6_output = self.conv6_layers[0](bn5_output)
             bn6_output = self.batch_normal6_layer(conv6_output)
             bn6_output = F.relu(bn6_output)
 
-            # conv7_output = self._conv(self.conv7_layers, bn6_output)
             conv7_output = self.conv7_layers[0](bn6_output)
             bn7_output = self.batch_normal7_layer(conv7_output)
             bn7_output = F.relu(bn7_output)
             max_pool7_output = self.max_pool_layer(bn7_output)
 
-            # conv8_output = self._conv(self.conv8_layers, max_pool7_output)
             conv8_output = self.conv8_layers[0](max_pool7_output)
             bn8_output = self.batch_normal8_layer(conv8_output)
             bn8_output = F.relu(bn8_output)
 
-            # conv9_output = self._conv(self.conv9_layers, bn8_output)
             conv9_output = self.conv9_layers[0](bn8_output)
             bn9_output = self.batch_normal9_layer(conv9_output)
             bn9_output = F.relu(bn9_output)

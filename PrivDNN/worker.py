@@ -2,13 +2,11 @@ import data
 import utils
 import models
 
-import re
 import torch
 import copy
 import json
 import math
 import random
-import sys
 import threading
 
 import torch.nn as nn
@@ -172,12 +170,12 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
             others_parameters = parameters[1]
             optimizer = optim.Adam(
                 [
-                    {"params": selected_parameters, "lr": 7.5e-4},
-                    {"params": others_parameters, "lr": 7.5e-5},
+                    {"params": selected_parameters, "lr": 5e-4},
+                    {"params": others_parameters, "lr": 5e-5},
                 ]
             )
         else:
-            optimizer = optim.Adam(parameters, lr=7.5e-3)
+            optimizer = optim.Adam(parameters, lr=5e-3)
 
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=dataloaders["epoch"]

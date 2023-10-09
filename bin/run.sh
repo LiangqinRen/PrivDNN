@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dataset="EMNIST"
+dataset="MNIST"
 
 accuracy["MNIST"]=99.36
 accuracy["EMNIST"]=92.62
