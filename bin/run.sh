@@ -2,7 +2,7 @@
 
 dataset="MNIST"
 
-accuracy["MNIST"]=99.36
+accuracy["MNIST"]=99.26
 accuracy["EMNIST"]=92.62
 accuracy["GTSRB"]=93.24
 accuracy["CIFAR10"]=89.12
