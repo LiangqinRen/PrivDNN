@@ -1,7 +1,9 @@
 /data/*
 !/data/.gitkeep
 
-/PrivDNN/__pycache__/
+**/__pycache__/**
+
+/analyze_result/**/*.npy
 
 /log/*
 !/log/.gitkeep
