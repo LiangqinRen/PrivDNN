@@ -40,7 +40,6 @@ if __name__ == "__main__":
 
     dataloaders = dataloaders_selection[args.dataset](args.model_work_mode)
     model_path = utils.get_model_path(args, dataloaders)
-
     if args.model_work_mode == utils.ModelWorkMode.train:
         if args.train_dataset_percent == 100:
             worker.train_and_save_model(args, logger, dataloaders, model_path)
@@ -57,32 +56,24 @@ if __name__ == "__main__":
             worker.test_separated_model(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.select_subset:
         trained_model = worker.load_trained_model(model_path)
-        worker.select_neurons_v1(args, logger, trained_model, dataloaders)
-        worker.select_neurons_v2(args, logger, trained_model, dataloaders)
-        logger.info(f"select_neurons_v2 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
-        worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
-        logger.info(f"select_neurons_v3_1 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
-        worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)
-        logger.info(f"select_neurons_v3_2 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
-        worker.select_neurons_v3(args, logger, trained_model, dataloaders, 3)
-        logger.info(f"select_neurons_v3_3 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
-        worker.select_neurons_v3(args, logger, trained_model, dataloaders, 4)
-        logger.info(f"select_neurons_v3_4 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
-        worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
-        logger.info(f"select_neurons_v4_1 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
-        worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
-        logger.info(f"select_neurons_v4_2 costs {time.time() - start_time:.3f} seconds")
-        start_time = time.time()
+        # worker.select_neurons_v1(args, logger, trained_model, dataloaders)
+        # worker.select_neurons_v2(args, logger, trained_model, dataloaders)
+        # logger.info(f"select_neurons_v2 costs {time.time() - start_time:.3f} seconds")
+
+        # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
+        # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)
+        # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 3)
+        # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 4)
+
+        # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
+        # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
+
         worker.select_full_combination(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.recover:
         trained_model = worker.load_trained_model(model_path)
-        worker.recover_model(args, logger, trained_model, dataloaders, model_path)
+        # worker.recover_model(args, logger, trained_model, dataloaders, model_path)
+        worker.train_from_scratch(args, logger, dataloaders)
+        # worker.recover_model_mix(args, logger, trained_model, dataloaders, model_path)
     elif args.model_work_mode == utils.ModelWorkMode.fhe_inference:
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
@@ -90,9 +81,9 @@ if __name__ == "__main__":
         trained_model.cpp_work_mode = models.CppWorkMode.separate
         logger.info("SEAL separate inference:")
         worker.test_model(logger, trained_model, dataloaders)
-        logger.info(
-            f"SEAL separate inference costs {time.time() - start_time:.3f} seconds"
-        )
+        # logger.info(
+        #    f"SEAL separate inference costs {time.time() - start_time:.3f} seconds"
+        # )
 
         """start_time = time.time()
         trained_model.cpp_work_mode = models.CppWorkMode.remove
@@ -114,5 +105,4 @@ if __name__ == "__main__":
     else:
         raise Exception("Unknown model_work_mode")
 
-    end_time = time.time()
-    logger.info(f"Program costs {end_time - start_time:.3f} seconds")
+    logger.info(f"PrivDNN costs {time.time() - start_time:.3f} seconds")

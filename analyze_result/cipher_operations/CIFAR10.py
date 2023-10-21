@@ -1,12 +1,12 @@
 print("cipher addition")
 print(
-    int(64 * 0.5) * 32 * 32 * 9 * 3  # conv1
-    + int(64 * 0.5) * 32 * 32  # bn1
+    int(64 * 0.75) * 32 * 32 * 9 * 3  # conv1
+    + int(64 * 0.75) * 32 * 32  # bn1
     + 0  # square
-    + int(64 * 0.5) * 16 * 16 * 9 * 64  # conv2
-    + int(64 * 0.5) * 16 * 16  # bn2
+    + int(64 * 0.75) * 16 * 16 * 9 * 64  # conv2
+    + int(64 * 0.75) * 16 * 16  # bn2
     + 0  # ReLU
-    + int(64 * 0.5) * 8 * 8 * 3  # pool
+    + int(64 * 0.75) * 8 * 8 * 3  # pool
 )
 
 
@@ -64,13 +64,13 @@ print(
 
 print("cipher multiplication")
 print(
-    int(64 * 0.5) * 32 * 32 * 9 * 3  # conv1
-    + int(64 * 0.5) * 32 * 32  # bn1
-    + int(64 * 0.5) * 32 * 32  # square
-    + int(64 * 0.5) * 16 * 16 * 9 * 64  # conv2
-    + int(64 * 0.5) * 16 * 16  # bn2
+    int(64 * 0.75) * 32 * 32 * 9 * 3  # conv1
+    + int(64 * 0.75) * 32 * 32  # bn1
+    + int(64 * 0.75) * 32 * 32  # square
+    + int(64 * 0.75) * 16 * 16 * 9 * 64  # conv2
+    + int(64 * 0.75) * 16 * 16  # bn2
     + 0  # ReLU
-    + int(64 * 0.5) * 8 * 8  # pool
+    + int(64 * 0.75) * 8 * 8  # pool
 )
 
 

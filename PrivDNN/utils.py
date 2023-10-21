@@ -3,7 +3,6 @@ import os
 import logging
 import time
 import argparse
-import pickle
 import enum
 
 
@@ -14,6 +13,18 @@ class ModelWorkMode(enum.Enum):
     recover = 4
     fhe_inference = 5
     something = 6
+
+
+class Timer:
+    def __init__(self, function_name, logger):
+        self.function_name = function_name
+        self.begin_time = time.time()
+        self.logger = logger
+
+    def __del__(self):
+        self.logger.info(
+            f"{self.function_name} costs {time.time() - self.begin_time:.3f} seconds"
+        )
 
 
 def is_file_exist(file_path):

@@ -8,6 +8,7 @@ import json
 import math
 import random
 import threading
+import inspect
 
 import torch.nn as nn
 import torch.nn.utils.prune as prune
@@ -16,6 +17,7 @@ import itertools as it
 import numpy as np
 
 from torch.ao.pruning._experimental.pruner.FPGM_pruner import FPGMPruner
+from tqdm import tqdm
 
 
 def save_model(trained_model, model_save_path):
@@ -98,6 +100,8 @@ def get_model_accuracy(model, dataloader):
 
 
 def test_model(logger, model, dataloaders):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     correct_count, samples_count, accuracy, _ = get_model_accuracy(
         model, dataloaders["test"]
     )
@@ -206,7 +210,6 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
                     {"params": others_parameters, "lr": 5e-4},
                 ],
                 momentum=0.9,
-                weight_decay=5e-4,
             )
         else:
             optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
@@ -224,7 +227,6 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
                     {"params": others_parameters, "lr": 5e-4},
                 ],
                 momentum=0.9,
-                weight_decay=5e-4,
             )
         else:
             optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
@@ -256,11 +258,12 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
             best_model = copy.deepcopy(model)
 
         scheduler.step()
-        with torch.no_grad():
-            _, _, accuracy, _ = get_model_accuracy(model, dataloaders["validate"])
-            logger.info(
-                f"[Epoch {i:3}]Loss: {average_loss:.8f}, Accuracy: {accuracy:5.3f}%"
-            )
+        if i % 8 == 0 or i == dataloaders["epoch"] - 1:
+            with torch.no_grad():
+                _, _, accuracy, _ = get_model_accuracy(model, dataloaders["validate"])
+                logger.info(
+                    f"[Epoch {i:3}]Loss: {average_loss:.8f}, Accuracy: {accuracy:5.3f}%"
+                )
 
         if model_path and best_model:
             if args.model_work_mode == utils.ModelWorkMode.train:
@@ -277,6 +280,8 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
 
 
 def train_and_save_model(args, logger, dataloaders, model_path):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     model = get_model(logger, dataloaders, model_path)
     logger.info("train the model")
 
@@ -292,6 +297,8 @@ def train_and_save_model(args, logger, dataloaders, model_path):
 
 
 def train_and_save_percent_dataset_model(args, logger, dataloaders, percent_range):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     accuracies = []
     for percent in range(
         percent_range[0], percent_range[1] + percent_range[2], percent_range[2]
@@ -299,7 +306,7 @@ def train_and_save_percent_dataset_model(args, logger, dataloaders, percent_rang
         logger.info(f"train the model with {percent}% data")
 
         percent_dataloaders = copy.deepcopy(dataloaders)
-        dataloaders.use_partial_dataloaders(percent_dataloaders, percent=percent)
+        data.use_partial_dataloaders(percent_dataloaders, percent=percent)
 
         percent_model_path = utils.get_model_path(args, percent_dataloaders, percent)
         train_and_save_model(args, logger, percent_dataloaders, percent_model_path)
@@ -312,6 +319,7 @@ def train_and_save_percent_dataset_model(args, logger, dataloaders, percent_rang
         logger.info(
             f"[{len(percent_dataloaders['train'].dataset)}, {percent}%]Accuracy: {accuracy}%"
         )
+        quit()
 
     logger.info(
         f"{percent_range[0]}% - {percent_range[1]}% with interval {percent_range[2]}% train dataset get accuracies: {accuracies}"
@@ -451,11 +459,17 @@ def select_full_combination_thread(
 
         results.append([index, selected_neurons, separate_accuracy, remove_accuracy])
 
-    results = np.array(results)
-    np.save(file_name, results, allow_pickle=True)
+        if index % 100 == 0:
+            np_results = np.array(results)
+            np.save(file_name, np_results)
+
+    np_results = np.array(results)
+    np.save(file_name, np_results)
 
 
 def select_full_combination(args, logger, model, dataloaders):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     if dataloaders["name"] != "MNIST" and dataloaders["name"] != "EMNIST":
         logger.error(
             f"the dataset is {dataloaders['name']}, while this function only supports MNIST and EMNIST"
@@ -463,12 +477,20 @@ def select_full_combination(args, logger, model, dataloaders):
         quit()
 
     combinations = []
-    for i in range(1, 1 + 1):
-        for layer_1_neurons in it.combinations(range(0, 10), i):
-            for j in range(4, 4 + 1):
-                for layer_2_neurons in it.combinations(range(0, 20), j):
-                    selected_neurons = {1: layer_1_neurons, 2: layer_2_neurons}
-                    combinations.append(selected_neurons)
+    if dataloaders["name"] == "MNIST":
+        for i in range(1, 3):
+            for layer_1_neurons in it.combinations(range(0, 6), i):
+                for j in range(i, 7):
+                    for layer_2_neurons in it.combinations(range(0, 16), j):
+                        selected_neurons = {1: layer_1_neurons, 2: layer_2_neurons}
+                        combinations.append(selected_neurons)
+    elif dataloaders["name"] == "EMNIST":
+        for i in range(1, 3):
+            for layer_1_neurons in it.combinations(range(0, 10), i):
+                for j in range(i, 5):
+                    for layer_2_neurons in it.combinations(range(0, 20), j):
+                        selected_neurons = {1: layer_1_neurons, 2: layer_2_neurons}
+                        combinations.append(selected_neurons)
 
     thread_count = 1
     index = int(len(combinations) / thread_count) + len(combinations) % thread_count
@@ -501,31 +523,10 @@ def select_full_combination(args, logger, model, dataloaders):
 
 
 def select_neurons_v1(args, logger, model, dataloaders):
-    # random
-    layers_list = model.get_layers_list()
-    select_limit = args.initial_layer_neurons
-    first_layer_index = args.initial_layer_index  # start from 0
-    encrypt_layers_count = args.encrypt_layers_count
-
-    selected_neurons = {}
-
-    for i in range(first_layer_index, first_layer_index + encrypt_layers_count):
-        if args.percent_factor is not None:
-            select_limit = max(
-                1,
-                int(layers_list[i][0].layer.out_channels * args.percent_factor / 100),
-            )
-
-        selected_neurons[i + 1] = random.choices(
-            range(layers_list[i][0].layer.out_channels), k=select_limit
-        )
-
-        if args.add_factor is not None:
-            select_limit = select_limit + args.add_factor
-        elif args.multiply_factor is not None:
-            select_limit = select_limit * args.multiply_factor
-
-    closing_test(args, logger, model, dataloaders, selected_neurons)
+    # since we have iterated all combinations
+    # there is no need to test random selections because we can look up its accuracy directly
+    # therefore, we use the immitate algorithm in /analyze_result/random_selections
+    pass
 
 
 def sig(x):
@@ -543,6 +544,8 @@ def get_neuron_point(args, separating_accuracy, removing_accuracy):
 
 
 def select_neurons_v2(args, logger, model, dataloaders):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     # greedy
     layers_list = model.get_layers_list()
     first_layer_neurons_count = args.initial_layer_neurons
@@ -614,6 +617,8 @@ def select_neurons_v2(args, logger, model, dataloaders):
 
 
 def select_neurons_v2_amend(args, logger, model, dataloaders, input_file, output_file):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     # only for large models
     selected_neurons = load_selected_neurons(dataloaders, input_file)
 
@@ -836,6 +841,10 @@ def pruning_select_greedy_forward(
 
 
 def select_neurons_v3(args, logger, model, dataloaders, prune_index=1):
+    timer = utils.Timer(
+        f"{inspect.currentframe().f_code.co_name}_v{prune_index}", logger
+    )
+
     # pruning
     layers_list = model.get_layers_list()
     select_limit = args.initial_layer_neurons
@@ -887,6 +896,9 @@ def select_neurons_v3(args, logger, model, dataloaders, prune_index=1):
 
 
 def select_neurons_v4(args, logger, model, dataloaders, prune_index=1):
+    timer = utils.Timer(
+        f"{inspect.currentframe().f_code.co_name}_v{prune_index}", logger
+    )
     # pruning + greedy
     layers_list = model.get_layers_list()
     first_layer_neurons_count = args.initial_layer_neurons
@@ -968,7 +980,82 @@ def select_neurons_v4(args, logger, model, dataloaders, prune_index=1):
     closing_test(args, logger, copy.deepcopy(model), dataloaders, selected_neurons)
 
 
+def train_from_scratch(args, logger, dataloaders):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
+    dataloaders_train = copy.deepcopy(dataloaders)
+    if args.recover_dataset_percent:
+        data.use_partial_dataloaders(
+            dataloaders_train, percent=args.recover_dataset_percent, mode="test"
+        )
+    elif args.recover_dataset_count:
+        data.use_partial_dataloaders(
+            dataloaders_train, count=args.recover_dataset_count, mode="test"
+        )
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = scheduler = None
+    dataloaders_train["epoch"] = 256
+
+    model_list = {
+        "MNIST": models.SplitMNISTNet(),
+        "EMNIST": models.SplitEMNISTNet(),
+        "GTSRB": models.SplitGTSRBNet(),
+        "CIFAR10": models.SplitCIFAR10Net(),
+    }
+    model = model_list[dataloaders_train["name"]]
+    model.set_layers_on_cuda()
+
+    layers_list = model.get_layers_list(include_fc_layers=True)
+    parameters = []
+    for layers in layers_list:
+        if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
+            parameters.extend(list(layers.parameters()))
+        else:
+            parameters.extend(list(layers[0].parameters()))
+
+    if dataloaders_train["name"] == "MNIST":
+        optimizer = optim.Adam(parameters, lr=6e-3)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=dataloaders_train["epoch"]
+        )
+    elif dataloaders_train["name"] == "EMNIST":
+        optimizer = optim.Adam(parameters, lr=3e-3)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=dataloaders_train["epoch"]
+        )
+    elif dataloaders_train["name"] == "GTSRB":
+        optimizer = optim.SGD(parameters, lr=1e-1, momentum=0.9)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=dataloaders_train["epoch"]
+        )
+    elif dataloaders_train["name"] == "CIFAR10":
+        optimizer = optim.SGD(parameters, lr=7e-2, momentum=0.9)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=dataloaders_train["epoch"]
+        )
+
+    for i in tqdm(range(dataloaders_train["epoch"])):
+        loss_ep = 0
+        for imgs, labels in dataloaders_train["train"]:
+            imgs = imgs.cuda()
+            labels = labels.cuda()
+
+            optimizer.zero_grad()
+            scores = model(imgs)
+            loss = criterion(scores, labels)
+            loss.backward()
+            optimizer.step()
+
+            loss_ep += loss.item()
+        scheduler.step()
+
+    test_model(logger, model, dataloaders_train)
+
+
 def recover_model(args, logger, model, dataloaders, model_path):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     dataloaders_recover = copy.deepcopy(dataloaders)
     dataloaders_recover["epoch"] = 64
     if args.recover_dataset_percent:
@@ -1027,6 +1114,87 @@ def recover_model(args, logger, model, dataloaders, model_path):
     test_model(logger, model, dataloaders)
 
 
+def recover_model_mix(args, logger, model, dataloaders, model_path):
+    dataloaders_recover = copy.deepcopy(dataloaders)
+    dataloaders_recover["epoch"] = 256
+    if args.recover_dataset_percent:
+        data.use_partial_dataloaders(
+            dataloaders_recover, percent=args.recover_dataset_percent, mode="test"
+        )
+    elif args.recover_dataset_count:
+        data.use_partial_dataloaders(
+            dataloaders_recover, count=args.recover_dataset_count, mode="test"
+        )
+
+    recover_model_path = (
+        model_path[:-7] + str(args.recover_dataset_percent) + "_recover_mix.pth"
+    )
+
+    selected_neurons = load_selected_neurons(
+        dataloaders,
+        f"selected_neurons_{int(args.percent_factor)}%.json"
+        if args.percent_factor
+        else f"recover_selected_neurons.json",
+    )
+
+    for layers in model.get_layers_list():
+        if layers[0].layer_index not in selected_neurons:
+            selected_neurons[layers[0].layer_index] = list(
+                range(layers[0].layer.out_channels)
+            )
+    model.selected_neurons = selected_neurons
+
+    logger.info("original accuracy")
+    model.work_mode = models.WorkMode.split
+    test_model(logger, model, dataloaders)
+
+    recover_parameters = []
+    others_parameters = []
+    for layers in model.get_layers_list(True):
+        if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
+            others_parameters.extend(list(layers.parameters()))
+        else:
+            layer_index = layers[0].layer_index  # layer_index starts from 1
+            if layer_index in selected_neurons:
+                for i in range(1, len(layers)):
+                    if i - 1 in selected_neurons[layer_index]:
+                        layers[i].layer.reset_parameters()
+                        recover_parameters.extend(list(layers[i].parameters()))
+                    else:
+                        others_parameters.extend(list(layers[i].parameters()))
+            else:
+                layers[0].layer.reset_parameters()
+                recover_parameters.extend(list(layers[0].parameters()))
+
+            """if layer_index >= 3:
+                recover_parameters.extend(list(layers[0].parameters()))
+            else:
+                others_parameters.extend(list(layers[0].parameters()))
+            for i in range(1, len(layers)):
+                if (
+                    layer_index in selected_neurons
+                    and i - 1 in selected_neurons[layer_index]
+                ):
+                    layers[i].layer.reset_parameters()
+                    recover_parameters.extend(list(layers[i].parameters()))
+                else:
+                    others_parameters.extend(list(layers[i].parameters()))"""
+
+    train_model(
+        args,
+        logger,
+        model,
+        dataloaders_recover,
+        [recover_parameters, others_parameters],
+        recover_model_path,
+    )
+
+    logger.info("after recovering the model(ReLU)")
+    test_model(logger, model, dataloaders)
+
+
 def test_separated_model(args, logger, model, dataloaders):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
     selected_neurons = load_selected_neurons(dataloaders, args.selected_neurons_file)
     closing_test(args, logger, model, dataloaders, selected_neurons)

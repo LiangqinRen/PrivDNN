@@ -1,7 +1,7 @@
 import utils
 import numpy as np
 
-file = "EMNIST_1_4"
+file = "MNIST"
 
 results = np.load(f"{file}.npy", allow_pickle=True)
 results = results.tolist()
@@ -23,7 +23,7 @@ for line in results:
     )
 
 
-top = 1
+top = 3
 for neurons in neuron_combination.keys():
     points = []  # float, [], {}
     for combination in neuron_combination[neurons]:
