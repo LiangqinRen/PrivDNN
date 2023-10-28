@@ -108,12 +108,10 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     auto conv1_bias_shape = shape.conv_bias[1];
     for (size_t i = 0; i < conv1_bias_shape; ++i) {
         if (is_neuron_encrypted(encryped_neurons, 1, i)) {
-            cout << __LINE__ << endl;
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
             temp_cipher.save(conv1_bias_outstream);
         } else {
-            cout << __LINE__ << endl;
             double temp_number = trained_data[trained_data_index];
             conv1_bias_outstream.write(
                 reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
@@ -286,48 +284,6 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
 }
 
-/*void thread_worker_decrypt_result(
-    const vector<Ciphertext> &ciphers,
-    vector<double> &numbers,
-    int begining,
-    int ending) {
-    auto parms = read_parms();
-    auto secret_key = read_secret_key();
-    SEALContext context(parms);
-    CKKSEncoder encoder(context);
-    Decryptor decryptor(context, secret_key);
-    Plaintext plaintext;
-    vector<double> decrypt_results;
-
-    for (int i = begining; i < ending; ++i) {
-        decryptor.decrypt(ciphers[i], plaintext);
-        encoder.decode(plaintext, decrypt_results);
-        numbers[i] = decrypt_results[0];
-    }
-}
-
-void thread_decrypt_result(const vector<Ciphertext> &ciphers, vector<double> &numbers) {
-    const unsigned processor_count = std::thread::hardware_concurrency();
-    vector<int> threads_task_count(processor_count, ciphers.size() / processor_count);
-    threads_task_count[0] += ciphers.size() % processor_count;
-
-    int beginnig = 0;
-    vector<thread> threads(processor_count);
-    for (size_t i = 0; i < threads.size(); ++i) {
-        threads[i] = thread(
-            thread_worker_decrypt_result,
-            cref(ciphers),
-            ref(numbers),
-            beginnig,
-            beginnig + threads_task_count[i]);
-        beginnig += threads_task_count[i];
-    }
-
-    for (size_t i = 0; i < threads.size(); ++i) {
-        threads[i].join();
-    }
-}*/
-
 vector<double> read_conv_result(
     const string &dataset,
     SEALPACK &seal,
@@ -348,7 +304,6 @@ vector<double> read_conv_result(
     size_t block_size = output_shape[2] * output_shape[3];
     for (size_t i = 0; i < output_size / batch_size;) {
         if (is_neuron_encrypted(encrypted_neurons, 2, i / block_size) && work_mode == separate_) {
-            cout << __LINE__ << endl;
             for (size_t j = 0; j < block_size; ++i, ++j) {
                 seal.cipher_.load(seal.context_, result_stream);
                 seal.decryptor_.decrypt(seal.cipher_, seal.plain_);
@@ -358,14 +313,12 @@ vector<double> read_conv_result(
                 }
             }
         } else {
-            cout << __LINE__ << endl;
             for (size_t j = 0; j < block_size; ++i, ++j) {
                 double value;
                 for (size_t k = 0; k < batch_size; ++k) {
                     result_stream.read(reinterpret_cast<char *>(&value), sizeof(double));
                     output[i + k * output_size / batch_size] = value;
                 }
-                // cout << value << " ";
             }
         }
     }
@@ -404,17 +357,11 @@ double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
         (work_mode == full_
              ? 10
              : shapes.conv_output[2][1] * shapes.conv_output[2][2] * shapes.conv_output[2][3]);
-    cout << __LINE__ << endl;
+
     vector<double> final_result;
     if (work_mode == separate_ || work_mode == remove_) {
         final_result =
             read_conv_result(dataset, seal, shapes.conv_output[2], output_size, work_mode);
-
-        cout << final_result.size() << endl;
-        for (size_t i = 0; i < final_result.size(); ++i) {
-            cout << final_result[i] << " ";
-        }
-        // exit(0);
     } else {
         final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
     }

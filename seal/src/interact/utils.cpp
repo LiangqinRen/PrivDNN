@@ -17,10 +17,10 @@ void update_shape_size(Shape &shape, size_t batch_size) {
 }
 
 json get_encrypted_neurons_list(string dataset) {
-    const static string NEURONS_LIST_PATH = string(PROJECT_PATH) + string("saved_models/") +
+    const static string encrypted_neurons_path = string(PROJECT_PATH) + string("saved_models/") +
         dataset + ("/inference_encrypted_neurons.json");
 
-    std::ifstream ifs(NEURONS_LIST_PATH);
+    std::ifstream ifs(encrypted_neurons_path);
     json encrypted_neurons_json;
     ifs >> encrypted_neurons_json;
 
