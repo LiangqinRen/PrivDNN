@@ -1,7 +1,4 @@
-import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 
 import GTSRB
 import CIFAR10
