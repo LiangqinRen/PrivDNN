@@ -46,10 +46,10 @@ def calculate_selection_ranking(dataset, data_path):
     return ranking_data
 
 
-def extract_data(ranking_data, data_categoty):
+def extract_data(ranking_data, data_category):
     filtered_data = []
     for data in ranking_data:
-        if len(data[1][1]) == data_categoty[0] and len(data[1][2]) == data_categoty[1]:
+        if len(data[1][1]) == data_category[0] and len(data[1][2]) == data_category[1]:
             filtered_data.append(data)
 
     return filtered_data
@@ -184,19 +184,20 @@ def draw_accuracy_distribution_graph(MNIST_filtered_data, EMNIST_filtered_data):
     draw_accuracy_distribution("EMNIST", EMNIST_filtered_data)
 
 
-# calculate_ranking
-data_path = {
-    "MNIST": "../full_combinations/MNIST.npy",
-    "EMNIST": "../full_combinations/EMNIST.npy",
-}
-MNIST_ranking = calculate_selection_ranking("MNIST", data_path["MNIST"])
-EMNIST_ranking = calculate_selection_ranking("EMNIST", data_path["EMNIST"])
+if __name__ == "__main__":
+    # calculate_ranking
+    data_path = {
+        "MNIST": "../full_combinations/MNIST.npy",
+        "EMNIST": "../full_combinations/EMNIST.npy",
+    }
+    MNIST_ranking = calculate_selection_ranking("MNIST", data_path["MNIST"])
+    EMNIST_ranking = calculate_selection_ranking("EMNIST", data_path["EMNIST"])
 
-# extract data
-data_categoty = {"MNIST": (2, 6), "EMNIST": (2, 4)}
-MNIST_filtered_data = extract_data(MNIST_ranking, data_categoty["MNIST"])
-EMNIST_filtered_data = extract_data(EMNIST_ranking, data_categoty["EMNIST"])
+    # extract data
+    data_category = {"MNIST": (2, 6), "EMNIST": (2, 4)}
+    MNIST_filtered_data = extract_data(MNIST_ranking, data_category["MNIST"])
+    EMNIST_filtered_data = extract_data(EMNIST_ranking, data_category["EMNIST"])
 
-# draw the line
-draw_ranking_accuracy_graph(MNIST_filtered_data, EMNIST_filtered_data)
-draw_accuracy_distribution_graph(MNIST_filtered_data, EMNIST_filtered_data)
+    # draw the line
+    draw_ranking_accuracy_graph(MNIST_filtered_data, EMNIST_filtered_data)
+    draw_accuracy_distribution_graph(MNIST_filtered_data, EMNIST_filtered_data)
