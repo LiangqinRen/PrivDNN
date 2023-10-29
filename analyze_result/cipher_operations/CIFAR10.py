@@ -1,126 +1,132 @@
-print("cipher addition")
-print(
-    int(64 * 0.75) * 32 * 32 * 9 * 3  # conv1
-    + int(64 * 0.75) * 32 * 32  # bn1
-    + 0  # square
-    + int(64 * 0.75) * 16 * 16 * 9 * 64  # conv2
-    + int(64 * 0.75) * 16 * 16  # bn2
-    + 0  # ReLU
-    + int(64 * 0.75) * 8 * 8 * 3  # pool
-)
+def count_cipher_addition(percent):
+    cipher_operations = int(64 * percent / 100) * 32 * 32 * 9 * 3  # conv1
+    cipher_operations += int(64 * percent / 100) * 32 * 32  # bn1
+    cipher_operations += 0  # square
+    cipher_operations += int(64 * percent / 100) * 16 * 16 * 9 * 64  # conv2
+    cipher_operations += int(64 * percent / 100) * 16 * 16  # bn2
+    cipher_operations += 0  # ReLU
+    cipher_operations += 0  # pool
+
+    total_operations = 64 * 32 * 32 * 9 * 3  # conv1
+    total_operations += 64 * 32 * 32  # bn1
+    total_operations += 0  # square
+    total_operations += 64 * 32 * 32 * 9 * 64  # conv2
+    total_operations += 64 * 32 * 32  # bn2
+    total_operations += 0  # ReLU
+    total_operations += 64 * 16 * 16 * 3  # pool2
+    total_operations += 128 * 16 * 16 * 9 * 64  # conv3
+    total_operations += 128 * 16 * 16  # bn3
+    total_operations += 0  # ReLU
+    total_operations += 128 * 16 * 16 * 9 * 128  # conv4
+    total_operations += 128 * 16 * 16  # bn4
+    total_operations += 0  # ReLU
+    total_operations += 128 * 8 * 8 * 3  # pool4
+    total_operations += 256 * 8 * 8 * 9 * 128  # conv5
+    total_operations += 256 * 8 * 8  # bn5
+    total_operations += 0  # ReLU
+    total_operations += 256 * 8 * 8 * 9 * 256  # conv6
+    total_operations += 256 * 8 * 8  # bn6
+    total_operations += 0  # ReLU
+    total_operations += 256 * 8 * 8 * 9 * 256  # conv7
+    total_operations += 256 * 8 * 8  # bn7
+    total_operations += 0  # ReLU
+    total_operations += 256 * 4 * 4 * 3  # pool7
+    total_operations += 512 * 4 * 4 * 9 * 256  # conv8
+    total_operations += 512 * 4 * 4  # bn8
+    total_operations += 0  # ReLU
+    total_operations += 512 * 4 * 4 * 9 * 512  # conv9
+    total_operations += 512 * 4 * 4  # bn9
+    total_operations += 0  # ReLU
+    total_operations += 512 * 4 * 4 * 9 * 512  # conv10
+    total_operations += 512 * 4 * 4  # bn10
+    total_operations += 0  # ReLU
+    total_operations += 512 * 2 * 2 * 3  # pool10
+    total_operations += 512 * 2 * 2 * 9 * 256  # conv11
+    total_operations += 512 * 2 * 2  # bn11
+    total_operations += 0  # ReLU
+    total_operations += 512 * 2 * 2 * 9 * 512  # conv12
+    total_operations += 512 * 2 * 2  # bn12
+    total_operations += 0  # ReLU
+    total_operations += 512 * 2 * 2 * 9 * 512  # conv13
+    total_operations += 512 * 2 * 2  # bn13
+    total_operations += 0  # ReLU
+    total_operations += 512 * 1 * 1 * 3  # pool13
+    total_operations += 1 * 511 * 512  # fc1
+    total_operations += 1 * 511 * 512  # fc2
+    total_operations += 1 * 511 * 10  # output
+
+    return (cipher_operations, total_operations)
 
 
-print("total addition")
-print(
-    64 * 32 * 32 * 9 * 3  # conv1
-    + 64 * 32 * 32  # bn1
-    + 0  # square
-    + 64 * 32 * 32 * 9 * 64  # conv2
-    + 64 * 32 * 32  # bn2
-    + 0  # ReLU
-    + 64 * 16 * 16 * 3  # pool2
-    + 128 * 16 * 16 * 9 * 64  # conv3
-    + 128 * 16 * 16  # bn3
-    + 0  # ReLU
-    + 128 * 16 * 16 * 9 * 128  # conv4
-    + 128 * 16 * 16  # bn4
-    + 0  # ReLU
-    + 128 * 8 * 8 * 3  # pool4
-    + 256 * 8 * 8 * 9 * 128  # conv5
-    + 256 * 8 * 8  # bn5
-    + 0  # ReLU
-    + 256 * 8 * 8 * 9 * 256  # conv6
-    + 256 * 8 * 8  # bn6
-    + 0  # ReLU
-    + 256 * 8 * 8 * 9 * 256  # conv7
-    + 256 * 8 * 8  # bn7
-    + 0  # ReLU
-    + 256 * 4 * 4 * 3  # pool7
-    + 512 * 4 * 4 * 9 * 256  # conv8
-    + 512 * 4 * 4  # bn8
-    + 0  # ReLU
-    + 512 * 4 * 4 * 9 * 512  # conv9
-    + 512 * 4 * 4  # bn9
-    + 0  # ReLU
-    + 512 * 4 * 4 * 9 * 512  # conv10
-    + 512 * 4 * 4  # bn10
-    + 0  # ReLU
-    + 512 * 2 * 2 * 3  # pool10
-    + 512 * 2 * 2 * 9 * 256  # conv11
-    + 512 * 2 * 2  # bn11
-    + 0  # ReLU
-    + 512 * 2 * 2 * 9 * 512  # conv12
-    + 512 * 2 * 2  # bn12
-    + 0  # ReLU
-    + 512 * 2 * 2 * 9 * 512  # conv13
-    + 512 * 2 * 2  # bn13
-    + 0  # ReLU
-    + 512 * 1 * 1 * 3  # pool13
-    + 1 * 511 * 512  # fc1
-    + 1 * 511 * 512  # fc2
-    + 1 * 511 * 10  # output
-)
+def count_cipher_multiplication(percent):
+    cipher_operations = int(64 * percent / 100) * 32 * 32 * 9 * 3  # conv1
+    cipher_operations += int(64 * percent / 100) * 32 * 32  # bn1
+    cipher_operations += int(64 * percent / 100) * 32 * 32  # square
+    cipher_operations += int(64 * percent / 100) * 16 * 16 * 9 * 64  # conv2
+    cipher_operations += int(64 * percent / 100) * 16 * 16  # bn2
+    cipher_operations += 0  # ReLU
+    cipher_operations += 0  # pool
+
+    total_operations = 64 * 32 * 32 * 9 * 3  # conv1
+    total_operations += 64 * 32 * 32  # bn1
+    total_operations += 64 * 32 * 32  # square
+    total_operations += 64 * 32 * 32 * 9 * 64  # conv2
+    total_operations += 64 * 32 * 32  # bn2
+    total_operations += 0  # ReLU
+    total_operations += 64 * 16 * 16 * 3  # pool2
+    total_operations += 128 * 16 * 16 * 9 * 64  # conv3
+    total_operations += 128 * 16 * 16  # bn3
+    total_operations += 0  # ReLU
+    total_operations += 128 * 16 * 16 * 9 * 128  # conv4
+    total_operations += 128 * 16 * 16  # bn4
+    total_operations += 0  # ReLU
+    total_operations += 128 * 8 * 8 * 3  # pool4
+    total_operations += 256 * 8 * 8 * 9 * 128  # conv5
+    total_operations += 256 * 8 * 8  # bn5
+    total_operations += 0  # ReLU
+    total_operations += 256 * 8 * 8 * 9 * 256  # conv6
+    total_operations += 256 * 8 * 8  # bn6
+    total_operations += 0  # ReLU
+    total_operations += 256 * 8 * 8 * 9 * 256  # conv7
+    total_operations += 256 * 8 * 8  # bn7
+    total_operations += 0  # ReLU
+    total_operations += 256 * 4 * 4 * 3  # pool7
+    total_operations += 512 * 4 * 4 * 9 * 256  # conv8
+    total_operations += 512 * 4 * 4  # bn8
+    total_operations += 0  # ReLU
+    total_operations += 512 * 4 * 4 * 9 * 512  # conv9
+    total_operations += 512 * 4 * 4  # bn9
+    total_operations += 0  # ReLU
+    total_operations += 512 * 4 * 4 * 9 * 512  # conv10
+    total_operations += 512 * 4 * 4  # bn10
+    total_operations += 0  # ReLU
+    total_operations += 512 * 2 * 2 * 3  # pool10
+    total_operations += 512 * 2 * 2 * 9 * 256  # conv11
+    total_operations += 512 * 2 * 2  # bn11
+    total_operations += 0  # ReLU
+    total_operations += 512 * 2 * 2 * 9 * 512  # conv12
+    total_operations += 512 * 2 * 2  # bn12
+    total_operations += 0  # ReLU
+    total_operations += 512 * 2 * 2 * 9 * 512  # conv13
+    total_operations += 512 * 2 * 2  # bn13
+    total_operations += 0  # ReLU
+    total_operations += 512 * 1 * 1 * 3  # pool13
+    total_operations += 1 * 512 * 512  # fc1
+    total_operations += 1 * 512 * 512  # fc2
+    total_operations += 1 * 512 * 10  # output
+
+    return (cipher_operations, total_operations)
 
 
-print("cipher multiplication")
-print(
-    int(64 * 0.75) * 32 * 32 * 9 * 3  # conv1
-    + int(64 * 0.75) * 32 * 32  # bn1
-    + int(64 * 0.75) * 32 * 32  # square
-    + int(64 * 0.75) * 16 * 16 * 9 * 64  # conv2
-    + int(64 * 0.75) * 16 * 16  # bn2
-    + 0  # ReLU
-    + int(64 * 0.75) * 8 * 8  # pool
-)
+if __name__ == "__main__":
+    for i in range(50, 105, 5):
+        (cipher_operations, total_operations) = count_cipher_addition(i)
+        print(
+            f"{i:3}% + {cipher_operations/total_operations*100:.5f}% {cipher_operations}/{total_operations}"
+        )
+        (cipher_operations, total_operations) = count_cipher_multiplication(i)
+        print(
+            f"{i:3}% * {cipher_operations/total_operations*100:.5f}% {cipher_operations}/{total_operations}"
+        )
 
-
-print("total multiplication")
-print(
-    64 * 32 * 32 * 9 * 3  # conv1
-    + 64 * 32 * 32  # bn1
-    + 64 * 32 * 32  # square
-    + 64 * 32 * 32 * 9 * 64  # conv2
-    + 64 * 32 * 32  # bn2
-    + 0  # ReLU
-    + 64 * 16 * 16 * 3  # pool2
-    + 128 * 16 * 16 * 9 * 64  # conv3
-    + 128 * 16 * 16  # bn3
-    + 0  # ReLU
-    + 128 * 16 * 16 * 9 * 128  # conv4
-    + 128 * 16 * 16  # bn4
-    + 0  # ReLU
-    + 128 * 8 * 8 * 3  # pool4
-    + 256 * 8 * 8 * 9 * 128  # conv5
-    + 256 * 8 * 8  # bn5
-    + 0  # ReLU
-    + 256 * 8 * 8 * 9 * 256  # conv6
-    + 256 * 8 * 8  # bn6
-    + 0  # ReLU
-    + 256 * 8 * 8 * 9 * 256  # conv7
-    + 256 * 8 * 8  # bn7
-    + 0  # ReLU
-    + 256 * 4 * 4 * 3  # pool7
-    + 512 * 4 * 4 * 9 * 256  # conv8
-    + 512 * 4 * 4  # bn8
-    + 0  # ReLU
-    + 512 * 4 * 4 * 9 * 512  # conv9
-    + 512 * 4 * 4  # bn9
-    + 0  # ReLU
-    + 512 * 4 * 4 * 9 * 512  # conv10
-    + 512 * 4 * 4  # bn10
-    + 0  # ReLU
-    + 512 * 2 * 2 * 3  # pool10
-    + 512 * 2 * 2 * 9 * 256  # conv11
-    + 512 * 2 * 2  # bn11
-    + 0  # ReLU
-    + 512 * 2 * 2 * 9 * 512  # conv12
-    + 512 * 2 * 2  # bn12
-    + 0  # ReLU
-    + 512 * 2 * 2 * 9 * 512  # conv13
-    + 512 * 2 * 2  # bn13
-    + 0  # ReLU
-    + 512 * 1 * 1 * 3  # pool13
-    + 1 * 512 * 512  # fc1
-    + 1 * 512 * 512  # fc2
-    + 1 * 512 * 10  # output
-)
+        print("-" * 34)
