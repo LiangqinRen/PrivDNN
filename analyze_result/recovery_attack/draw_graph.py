@@ -17,7 +17,8 @@ def draw_recovery_attack_graph(
     plt.xlabel("Selected Neurons (%)")
     plt.ylabel("%")
 
-    plt.xticks(np.linspace(50, 100, 11))  # [50, 100, 5]
+    plt.xticks(np.linspace(50, 100, 11))  # [50, 105, 5]
+    plt.yticks(np.linspace(10, 100, 10))  # [10, 110, 10]
 
     plt.plot(
         percents, separate_accuracies, linestyle="solid", color="green", label="$A_s$"
@@ -70,6 +71,9 @@ def draw_recovery_attack_graph(
     )
 
     plt.legend(loc="best")
+
+    for i in range(10, 110, 10):
+        plt.axhline(i, linestyle="--", color="gray", alpha=0.3)
 
     plt.savefig(f"recovery_attack.png")
     plt.close()
