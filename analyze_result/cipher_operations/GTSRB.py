@@ -49,12 +49,25 @@ def count_cipher_multiplication(percent):
     return (cipher_operations, total_operations)
 
 
+def count_neurons(percent):
+    encrypted_neurons = int(96 * percent / 100) + int(256 * percent / 100)
+    total_neurons = 96 + 256 + 384 + 384 + 256
+
+    return (encrypted_neurons, total_neurons)
+
+
 if __name__ == "__main__":
     for i in range(50, 105, 5):
+        (encrypted_neurons, total_neurons) = count_neurons(i)
+        print(
+            f"{i:3}% n {encrypted_neurons/total_neurons*100:.3f}% {encrypted_neurons}/{total_neurons}"
+        )
+
         (cipher_operations, total_operations) = count_cipher_addition(i)
         print(
             f"{i:3}% + {cipher_operations/total_operations*100:.5f}% {cipher_operations}/{total_operations}"
         )
+
         (cipher_operations, total_operations) = count_cipher_multiplication(i)
         print(
             f"{i:3}% * {cipher_operations/total_operations*100:.5f}% {cipher_operations}/{total_operations}"
