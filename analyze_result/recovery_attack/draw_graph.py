@@ -12,7 +12,7 @@ def draw_recovery_attack_graph(
     separate_accuracies,
     remove_accuracies,
     recover_accuracies,
-    cifar10_multi_operations,
+    cifar10_cipher_neurons,
 ):
     plt.xlabel("Selected Neurons (%)")
     plt.ylabel("%")
@@ -35,7 +35,7 @@ def draw_recovery_attack_graph(
     )
     plt.plot(
         percents,
-        cifar10_multi_operations,
+        cifar10_cipher_neurons,
         linestyle="solid",
         color="purple",
         label="$N_e/N$",
@@ -62,11 +62,11 @@ def draw_recovery_attack_graph(
         xytext=(percents[5] + 1, recover_accuracies[5] + 1),
         color="red",
     )
-    plt.scatter(percents[5], cifar10_multi_operations[5], color="red", zorder=2)
+    plt.scatter(percents[5], cifar10_cipher_neurons[5], color="red", zorder=2)
     plt.annotate(
-        f"{cifar10_multi_operations[5]:.2f}",
-        xy=(percents[5], cifar10_multi_operations[5]),
-        xytext=(percents[5] + 1, cifar10_multi_operations[5] + 1),
+        f"{cifar10_cipher_neurons[5]:.2f}",
+        xy=(percents[5], cifar10_cipher_neurons[5]),
+        xytext=(percents[5] + 1, cifar10_cipher_neurons[5] + 1),
         color="red",
     )
 
@@ -120,15 +120,15 @@ if __name__ == "__main__":
         23.12,
         22.20,
     ]
-    cifar10_multi_operations = []
+    cifar10_cipher_neurons = []
     for i in percents:
-        operations = CIFAR10.count_cipher_multiplication(i)
-        cifar10_multi_operations.append(operations[0] / operations[1] * 100)
+        operations = CIFAR10.count_neurons(i)
+        cifar10_cipher_neurons.append(operations[0] / operations[1] * 100)
 
     draw_recovery_attack_graph(
         percents,
         separate_accuracies,
         remove_accuracies,
         recover_accuracies,
-        cifar10_multi_operations,
+        cifar10_cipher_neurons,
     )
