@@ -4,6 +4,7 @@
 **/__pycache__/**
 
 /analyze_result/**/*.npy
+/analyze_result/**/*.png
 
 /log/*
 !/log/.gitkeep
