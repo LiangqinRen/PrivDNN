@@ -56,9 +56,9 @@ if __name__ == "__main__":
             worker.test_separated_model(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.select_subset:
         trained_model = worker.load_trained_model(model_path)
+
         # worker.select_neurons_v1(args, logger, trained_model, dataloaders)
-        # worker.select_neurons_v2(args, logger, trained_model, dataloaders)
-        # logger.info(f"select_neurons_v2 costs {time.time() - start_time:.3f} seconds")
+        worker.select_neurons_v2(args, logger, trained_model, dataloaders)
 
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)
@@ -68,38 +68,27 @@ if __name__ == "__main__":
         # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
         # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
 
-        worker.select_full_combination(args, logger, trained_model, dataloaders)
+        # worker.select_full_combination(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.recover:
         trained_model = worker.load_trained_model(model_path)
-        # worker.recover_model(args, logger, trained_model, dataloaders, model_path)
-        worker.train_from_scratch(args, logger, dataloaders)
-        # worker.recover_model_mix(args, logger, trained_model, dataloaders, model_path)
+        worker.recover_model(args, logger, trained_model, dataloaders, model_path)
+        # worker.train_from_scratch(args, logger, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.fhe_inference:
+        model_path = model_path.replace(".pth", "_cpp.pth")
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
 
         trained_model.cpp_work_mode = models.CppWorkMode.separate
         logger.info("SEAL separate inference:")
         worker.test_model(logger, trained_model, dataloaders)
-        # logger.info(
-        #    f"SEAL separate inference costs {time.time() - start_time:.3f} seconds"
-        # )
 
-        """start_time = time.time()
-        trained_model.cpp_work_mode = models.CppWorkMode.remove
-        logger.info("SEAL remove inference:")
-        worker.test_model(logger, trained_model, dataloaders)
-        logger.info(
-            f"SEAL remove inference costs {time.time() - start_time:.3f} seconds"
-        )"""
+        # trained_model.cpp_work_mode = models.CppWorkMode.remove
+        # logger.info("SEAL remove inference:")
+        # worker.test_model(logger, trained_model, dataloaders)
 
-        """start_time = time.time()
-        trained_model.cpp_work_mode = models.CppWorkMode.full
-        logger.info("SEAL full inference:")
-        worker.test_model(logger, trained_model, dataloaders)
-        logger.info(
-            f"SEAL full cipher inference costs {time.time() - start_time:.3f} seconds"
-        )"""
+        # trained_model.cpp_work_mode = models.CppWorkMode.full
+        # logger.info("SEAL full inference:")
+        # worker.test_model(logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.something:
         trained_model = worker.load_trained_model(model_path)
     else:

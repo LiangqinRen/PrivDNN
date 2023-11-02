@@ -6,7 +6,6 @@ import torch
 import copy
 import json
 import math
-import random
 import threading
 import inspect
 
@@ -525,7 +524,7 @@ def select_full_combination(args, logger, model, dataloaders):
 def select_neurons_v1(args, logger, model, dataloaders):
     # since we have iterated all combinations
     # there is no need to test random selections because we can look up its accuracy directly
-    # therefore, we use the immitate algorithm in /analyze_result/random_selections
+    # therefore, we use the imitation algorithm in /analyze_result/random_selections
     pass
 
 
@@ -995,7 +994,7 @@ def train_from_scratch(args, logger, dataloaders):
 
     criterion = nn.CrossEntropyLoss()
     optimizer = scheduler = None
-    dataloaders_train["epoch"] = 256
+    dataloaders_train["epoch"] = 512
 
     model_list = {
         "MNIST": models.SplitMNISTNet(),
@@ -1015,7 +1014,7 @@ def train_from_scratch(args, logger, dataloaders):
             parameters.extend(list(layers[0].parameters()))
 
     if dataloaders_train["name"] == "MNIST":
-        optimizer = optim.Adam(parameters, lr=6e-3)
+        optimizer = optim.Adam(parameters, lr=1e-3)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=dataloaders_train["epoch"]
         )
@@ -1025,12 +1024,12 @@ def train_from_scratch(args, logger, dataloaders):
             optimizer, T_max=dataloaders_train["epoch"]
         )
     elif dataloaders_train["name"] == "GTSRB":
-        optimizer = optim.SGD(parameters, lr=1e-1, momentum=0.9)
+        optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=dataloaders_train["epoch"]
         )
     elif dataloaders_train["name"] == "CIFAR10":
-        optimizer = optim.SGD(parameters, lr=7e-2, momentum=0.9)
+        optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=dataloaders_train["epoch"]
         )

@@ -3,6 +3,8 @@
 
 **/__pycache__/**
 
+/bin/*.npy
+
 /analyze_result/**/*.npy
 /analyze_result/**/*.png
 
