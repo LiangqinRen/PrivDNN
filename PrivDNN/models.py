@@ -651,7 +651,7 @@ class SplitCIFAR10Net(SplitNet):
             )
             for _ in range(64)
         ]
-        self.batch_normal1_layer = nn.BatchNorm2d(64)
+        # self.batch_normal1_layer = nn.BatchNorm2d(64)
 
         self.conv2_layers = [
             MaskedLayer(
@@ -832,8 +832,8 @@ class SplitCIFAR10Net(SplitNet):
             or self.work_mode == WorkMode.recover
         ):
             conv1_output = self._conv(self.conv1_layers, input)
-            bn1_output = self.batch_normal1_layer(conv1_output)
-            bn1_output = self._activate(bn1_output, [torch.square, F.relu])
+            # bn1_output = self.batch_normal1_layer(conv1_output)
+            bn1_output = self._activate(conv1_output, [torch.square, F.relu])
 
             conv2_output = self._conv(self.conv2_layers, bn1_output)
             bn2_output = self.batch_normal2_layer(conv2_output)
@@ -920,7 +920,7 @@ class SplitCIFAR10Net(SplitNet):
         if include_fc_layers:
             layers_list.extend(
                 [
-                    self.batch_normal1_layer,
+                    # self.batch_normal1_layer,
                     self.batch_normal2_layer,
                     self.batch_normal3_layer,
                     self.batch_normal4_layer,

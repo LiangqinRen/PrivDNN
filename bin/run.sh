@@ -3,7 +3,7 @@
 dataset="CIFAR10"
 
 declare -A accuracy
-accuracy=(["MNIST"]='99.36' ["EMNIST"]='92.62' ["GTSRB"]='93.24' ["CIFAR10"]='89.12')
+accuracy=(["MNIST"]='99.36' ["EMNIST"]='92.62' ["GTSRB"]='93.24' ["CIFAR10"]='90.32')
 
 
 if [[ $1 == 'train' ]]
@@ -20,9 +20,9 @@ then
 elif [[ $1 == 'select' ]]
 then
     # select filters, the main file decides the algorithm to use
-    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
+    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 
-    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 5 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
+    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 5 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 elif [[ $1 == 'recover' ]]
 then
     # recover the model with different amount of pictures
