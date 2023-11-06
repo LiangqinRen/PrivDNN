@@ -474,7 +474,7 @@ class SplitEMNISTNet(SplitNet):
                 fc2_output = F.relu(self.fc2_layer(fc1_output))
                 output = self.fc3_layer(fc2_output)
         else:
-            raise Exception("SplitMNISTNet unknown work mode")
+            raise Exception("SplitEMNISTNet unknown work mode")
 
         return output
 
@@ -832,10 +832,9 @@ class SplitCIFAR10Net(SplitNet):
             or self.work_mode == WorkMode.recover
         ):
             conv1_output = self._conv(self.conv1_layers, input)
-            # bn1_output = self.batch_normal1_layer(conv1_output)
-            bn1_output = self._activate(conv1_output, [torch.square, F.relu])
+            conv1_output = self._activate(conv1_output, [torch.square, F.relu])
 
-            conv2_output = self._conv(self.conv2_layers, bn1_output)
+            conv2_output = self._conv(self.conv2_layers, conv1_output)
             bn2_output = self.batch_normal2_layer(conv2_output)
             bn2_output = F.relu(bn2_output)
             max_pool2_output = self.max_pool_layer(bn2_output)
@@ -870,23 +869,19 @@ class SplitCIFAR10Net(SplitNet):
             bn9_output = self.batch_normal9_layer(conv9_output)
             bn9_output = F.relu(bn9_output)
 
-            # conv10_output = self._conv(self.conv10_layers, bn9_output)
             conv10_output = self.conv10_layers[0](bn9_output)
             bn10_output = self.batch_normal10_layer(conv10_output)
             bn10_output = F.relu(bn10_output)
             max_pool10_output = self.max_pool_layer(bn10_output)
 
-            # conv11_output = self._conv(self.conv11_layers, max_pool10_output)
             conv11_output = self.conv11_layers[0](max_pool10_output)
             bn11_output = self.batch_normal11_layer(conv11_output)
             bn11_output = F.relu(bn11_output)
 
-            # conv12_output = self._conv(self.conv12_layers, bn11_output)
             conv12_output = self.conv12_layers[0](bn11_output)
             bn12_output = self.batch_normal12_layer(conv12_output)
             bn12_output = F.relu(bn12_output)
 
-            # conv13_output = self._conv(self.conv13_layers, bn12_output)
             conv13_output = self.conv13_layers[0](bn12_output)
             bn13_output = self.batch_normal13_layer(conv13_output)
             bn13_output = F.relu(bn13_output)
@@ -896,8 +891,133 @@ class SplitCIFAR10Net(SplitNet):
             fc1_output = self.dropout(F.relu(self.fc1_layer(fc1_input)))
             fc2_output = self.dropout(F.relu(self.fc2_layer(fc1_output)))
             output = self.fc3_layer(fc2_output)
+        elif self.work_mode == WorkMode.cipher:
+            work_mode = int(  # 0 separate, 1 remove
+                0 if self.cpp_work_mode == CppWorkMode.separate else 1
+            )
+
+            client_library = ctypes.CDLL("../seal/output/lib/libclient.so")
+            server_library = ctypes.CDLL("../seal/output/lib/libserver.so")
+
+            cpp_is_file_complete = server_library.is_file_complete
+            cpp_is_file_complete.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+            ]
+            cpp_is_file_complete.restype = ctypes.c_bool
+
+            if not cpp_is_file_complete(
+                b"CIFAR10",
+                work_mode,
+            ):
+                cpp_save_trained_data = server_library.save_trained_data
+                cpp_save_trained_data.argtypes = [
+                    ctypes.c_char_p,
+                    ctypes.POINTER(ctypes.c_double),
+                    ctypes.c_int,
+                ]
+
+                trained_data_pointer = self._get_trained_data_pointer("CIFAR10")
+                cpp_save_trained_data(
+                    b"CIFAR10",
+                    trained_data_pointer,
+                    work_mode,
+                )
+
+            cpp_worker = client_library.worker
+            cpp_worker.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_double),
+                ctypes.c_int,
+            ]
+
+            input_list = torch.flatten(input).tolist()
+            input_pointer = (ctypes.c_double * len(input_list))(*input_list)
+            cpp_worker(b"CIFAR10", input.shape[0], input_pointer, work_mode)
+
+            cpp_get_result = server_library.get_result
+            cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+            cpp_get_result.restype = ctypes.POINTER(ctypes.c_double)
+
+            if (
+                self.cpp_work_mode == CppWorkMode.separate
+                or self.cpp_work_mode == CppWorkMode.remove
+            ):
+                conv1_output = cpp_get_result(
+                    b"CIFAR10",
+                    input.shape[0],
+                    work_mode,
+                )
+
+                conv1_output = [
+                    conv1_output[i] for i in range(input.shape[0] * 64 * 32 * 32)
+                ]
+                conv1_output = torch.reshape(
+                    torch.FloatTensor(conv1_output), [input.shape[0], 64, 32, 32]
+                ).cuda()
+                conv1_output = torch.square(conv1_output)
+
+                conv2_output = self.conv2_layers[0](conv1_output)
+                bn2_output = self.batch_normal2_layer(conv2_output)
+                bn2_output = F.relu(bn2_output)
+                max_pool2_output = self.max_pool_layer(bn2_output)
+
+                conv3_output = self.conv3_layers[0](max_pool2_output)
+                bn3_output = self.batch_normal3_layer(conv3_output)
+                bn3_output = F.relu(bn3_output)
+
+                conv4_output = self.conv4_layers[0](bn3_output)
+                bn4_output = self.batch_normal4_layer(conv4_output)
+                bn4_output = F.relu(bn4_output)
+                max_pool4_output = self.max_pool_layer(bn4_output)
+
+                conv5_output = self.conv5_layers[0](max_pool4_output)
+                bn5_output = self.batch_normal5_layer(conv5_output)
+                bn5_output = F.relu(bn5_output)
+
+                conv6_output = self.conv6_layers[0](bn5_output)
+                bn6_output = self.batch_normal6_layer(conv6_output)
+                bn6_output = F.relu(bn6_output)
+
+                conv7_output = self.conv7_layers[0](bn6_output)
+                bn7_output = self.batch_normal7_layer(conv7_output)
+                bn7_output = F.relu(bn7_output)
+                max_pool7_output = self.max_pool_layer(bn7_output)
+
+                conv8_output = self.conv8_layers[0](max_pool7_output)
+                bn8_output = self.batch_normal8_layer(conv8_output)
+                bn8_output = F.relu(bn8_output)
+
+                conv9_output = self.conv9_layers[0](bn8_output)
+                bn9_output = self.batch_normal9_layer(conv9_output)
+                bn9_output = F.relu(bn9_output)
+
+                conv10_output = self.conv10_layers[0](bn9_output)
+                bn10_output = self.batch_normal10_layer(conv10_output)
+                bn10_output = F.relu(bn10_output)
+                max_pool10_output = self.max_pool_layer(bn10_output)
+
+                conv11_output = self.conv11_layers[0](max_pool10_output)
+                bn11_output = self.batch_normal11_layer(conv11_output)
+                bn11_output = F.relu(bn11_output)
+
+                conv12_output = self.conv12_layers[0](bn11_output)
+                bn12_output = self.batch_normal12_layer(conv12_output)
+                bn12_output = F.relu(bn12_output)
+
+                conv13_output = self.conv13_layers[0](bn12_output)
+                bn13_output = self.batch_normal13_layer(conv13_output)
+                bn13_output = F.relu(bn13_output)
+                max_pool13_output = self.max_pool_layer(bn13_output)
+
+                fc1_input = max_pool13_output.reshape(max_pool13_output.shape[0], -1)
+                fc1_output = self.dropout(F.relu(self.fc1_layer(fc1_input)))
+                fc2_output = self.dropout(F.relu(self.fc2_layer(fc1_output)))
+                output = self.fc3_layer(fc2_output)
         else:
-            pass
+            raise Exception("SplitCIFAR10Net unknown work mode")
+
         return output
 
     def get_layers_list(self, include_fc_layers=False):

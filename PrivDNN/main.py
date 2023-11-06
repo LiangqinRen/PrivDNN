@@ -74,7 +74,8 @@ if __name__ == "__main__":
         worker.recover_model(args, logger, trained_model, dataloaders, model_path)
         # worker.train_from_scratch(args, logger, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.fhe_inference:
-        model_path = model_path.replace(".pth", "_cpp.pth")
+        if args.dataset == "MNIST":
+            model_path = model_path.replace(".pth", "_cpp.pth")
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
 

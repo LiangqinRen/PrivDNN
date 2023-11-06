@@ -242,12 +242,13 @@ def get_CIFAR10_dataloader(
     validate_dataset_count = int(len(total_test_dataset) * validate_ratio_in_testset)
     validate_dataset, test_dataset = random_split(
         total_test_dataset,
-        [validate_dataset_count, len(total_test_dataset) - validate_dataset_count],
+        [len(total_test_dataset) - 2500, 2500],
+        # [validate_dataset_count, len(total_test_dataset) - validate_dataset_count],
         torch.manual_seed(0),
     )  # split the dataset definitely, because we want to get a stable result"""
 
     batch_size = 128
-    fhe_batch_size = 8192
+    fhe_batch_size = 2500
     dataloaders = {
         "name": "CIFAR10",
         "epoch": 128,
