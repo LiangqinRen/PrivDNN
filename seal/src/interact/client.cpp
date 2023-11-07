@@ -145,25 +145,30 @@ void thread_conv_worker(
         cout << __FILE__ << "|" << __LINE__ << endl;
         auto sum = bias;
         if (round == 1) {
-            for (size_t a = 0; a < shape.kernal_sizes[1]; ++a) {
-                for (size_t b = 0; b < shape.kernal_sizes[1]; ++b) {
-                    if ((0 <= output_indexes[i][2] + a - 1 &&
-                         output_indexes[i][2] + a - 1 < shape.conv_input[1][2]) &&
-                        (0 <= output_indexes[i][3] + b - 1 &&
-                         output_indexes[i][3] + b - 1 < shape.conv_input[1][3])) {
-                        auto input_values = get<vector<double>>(input[get_index(
-                            shape.conv_input[1],
-                            {0, 0, output_indexes[i][2] + a - 1, output_indexes[i][3] + b - 1})]);
-                        Plaintext input_plain;
-                        seal.encoder_.encode(input_values, SCALE, input_plain);
-                        auto weight_cipher = get<Ciphertext>(weight[get_index(
-                            shape.conv_weight[1], {output_indexes[i][1], 0, a, b})]);
+            for (size_t channel = 0; channel < shape.conv_input[1][1]; ++channel) {
+                for (size_t a = 0; a < shape.kernal_sizes[1]; ++a) {
+                    for (size_t b = 0; b < shape.kernal_sizes[1]; ++b) {
+                        if ((0 <= output_indexes[i][2] + a - 1 &&
+                             output_indexes[i][2] + a - 1 < shape.conv_input[1][2]) &&
+                            (0 <= output_indexes[i][3] + b - 1 &&
+                             output_indexes[i][3] + b - 1 < shape.conv_input[1][3])) {
+                            auto input_values = get<vector<double>>(input[get_index(
+                                shape.conv_input[1],
+                                {0,
+                                 channel,
+                                 output_indexes[i][2] + a - 1,
+                                 output_indexes[i][3] + b - 1})]);
+                            Plaintext input_plain;
+                            seal.encoder_.encode(input_values, SCALE, input_plain);
+                            auto weight_cipher = get<Ciphertext>(weight[get_index(
+                                shape.conv_weight[1], {output_indexes[i][1], channel, a, b})]);
 
-                        Ciphertext multiplied_cipher;
-                        seal.evaluator_.multiply_plain(
-                            weight_cipher, input_plain, multiplied_cipher);
-                        seal.evaluator_.rescale_to_next_inplace(multiplied_cipher);
-                        seal.evaluator_.add_inplace(sum, multiplied_cipher);
+                            Ciphertext multiplied_cipher;
+                            seal.evaluator_.multiply_plain(
+                                weight_cipher, input_plain, multiplied_cipher);
+                            seal.evaluator_.rescale_to_next_inplace(multiplied_cipher);
+                            seal.evaluator_.add_inplace(sum, multiplied_cipher);
+                        }
                     }
                 }
             }
@@ -352,7 +357,7 @@ vector<variant<vector<double>, Ciphertext>> conv(
     }
     vector<variant<vector<double>, Ciphertext>> output(output_size);
     cout << __FILE__ << "|" << __LINE__ << endl;
-    if (round == 1) {
+    if (round == 1) { // conv1 inputs are plain
         for (size_t i = 0; i < output_shape[1]; ++i) {
             // cout << __FILE__ << "|" << __LINE__ << endl;
             if (is_neuron_encrypted(encrypted_neurons, round, i)) {
@@ -407,7 +412,7 @@ vector<variant<vector<double>, Ciphertext>> conv(
                 }
             }
         }
-    } else {
+    } else { // later conv inputs are plain/cipher
         cout << __FILE__ << "|" << __LINE__ << endl;
         for (size_t i = 0; i < output_shape[1]; ++i) {
             if (is_neuron_encrypted(encrypted_neurons, round, i)) {
