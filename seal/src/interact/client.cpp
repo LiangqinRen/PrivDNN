@@ -802,8 +802,6 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
     for (size_t round = 1; round <= shape.conv_input.size(); ++round) {
         cout << __FILE__ << "|" << __LINE__ << endl;
         auto conv_result = conv(dataset, seal, shape, round, input, encrypted_neurons, work_mode);
-        save_worker_result(dataset, conv_result);
-        return;
 
         cout << __FILE__ << "|" << __LINE__ << endl;
         if (round == 2) {
@@ -846,6 +844,8 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
             } else {
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 square_activate(dataset, seal, conv_result);
+                save_worker_result(dataset, conv_result);
+                return;
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 input = move(conv_result);
                 cout << __FILE__ << "|" << __LINE__ << endl;

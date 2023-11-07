@@ -956,7 +956,7 @@ class SplitCIFAR10Net(SplitNet):
                 conv1_output = torch.reshape(
                     torch.FloatTensor(conv1_output), [input.shape[0], 64, 32, 32]
                 ).cuda()
-                conv1_output = torch.square(conv1_output)
+                # conv1_output = torch.square(conv1_output)
 
                 conv2_output = self.conv2_layers[0](conv1_output)
                 bn2_output = self.batch_normal2_layer(conv2_output)
