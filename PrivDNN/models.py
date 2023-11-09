@@ -831,6 +831,8 @@ class SplitCIFAR10Net(SplitNet):
             or self.work_mode == WorkMode.split
             or self.work_mode == WorkMode.recover
         ):
+            # print(self.conv2_layers[0].layer.bias)
+            # quit()
             conv1_output = self._conv(self.conv1_layers, input)
             conv1_output = self._activate(conv1_output, [torch.square, F.relu])
 
@@ -944,21 +946,18 @@ class SplitCIFAR10Net(SplitNet):
                 self.cpp_work_mode == CppWorkMode.separate
                 or self.cpp_work_mode == CppWorkMode.remove
             ):
-                conv1_output = cpp_get_result(
+                conv2_output = cpp_get_result(
                     b"CIFAR10",
-                    input.shape[0],
+                    input.shape[0],  # batch size
                     work_mode,
                 )
 
-                conv1_output = [
-                    conv1_output[i] for i in range(input.shape[0] * 64 * 32 * 32)
+                conv2_output = [
+                    conv2_output[i] for i in range(input.shape[0] * 64 * 32 * 32)
                 ]
-                conv1_output = torch.reshape(
-                    torch.FloatTensor(conv1_output), [input.shape[0], 64, 32, 32]
+                conv2_output = torch.reshape(
+                    torch.FloatTensor(conv2_output), [input.shape[0], 64, 32, 32]
                 ).cuda()
-                # conv1_output = torch.square(conv1_output)
-
-                conv2_output = self.conv2_layers[0](conv1_output)
                 bn2_output = self.batch_normal2_layer(conv2_output)
                 bn2_output = F.relu(bn2_output)
                 max_pool2_output = self.max_pool_layer(bn2_output)

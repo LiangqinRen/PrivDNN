@@ -30,10 +30,12 @@ if(SEAL_BUILD_EXAMPLES)
 
     ADD_LIBRARY(server SHARED ${server_srcs})
     ADD_LIBRARY(client SHARED ${client_srcs})
+    ADD_EXECUTABLE(client_bin ${client_srcs})
 
     if(TARGET SEAL::seal OR TARGET SEAL::seal_shared)
         target_link_libraries(server PRIVATE SEAL::seal)
         target_link_libraries(client PRIVATE SEAL::seal)
+        target_link_libraries(client_bin PRIVATE SEAL::seal)
     else()
         message(FATAL_ERROR "Cannot find target SEAL::seal or SEAL::seal_shared")
     endif()

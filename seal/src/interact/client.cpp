@@ -23,13 +23,13 @@ size_t get_index(const array<size_t, 4> &shape, const array<size_t, 4> &indexes)
 
 void degrade_cipher_levels(SEALPACK &seal, Ciphertext &cipher, size_t level) {
     double one = 1.0;
-    Plaintext one_plain;
-    seal.encoder_.encode(one, SCALE, one_plain);
+    Plaintext plain_one;
+    seal.encoder_.encode(one, SCALE, plain_one);
 
     for (size_t i = 0; i < level; ++i) {
         parms_id_type last_parms_id = cipher.parms_id();
-        seal.evaluator_.mod_switch_to_inplace(one_plain, last_parms_id);
-        seal.evaluator_.multiply_plain_inplace(cipher, one_plain);
+        seal.evaluator_.mod_switch_to_inplace(plain_one, last_parms_id);
+        seal.evaluator_.multiply_plain_inplace(cipher, plain_one);
         seal.evaluator_.rescale_to_next_inplace(cipher);
     }
 }
@@ -56,29 +56,29 @@ vector<variant<double, Ciphertext>> read_conv_weight(
     if (work_mode == full_) {
         weight_path += string("_full");
     }
-    cout << __FILE__ << "|" << __LINE__ << endl;
-    cout << weight_path << endl;
+    // cout << __FILE__ << "|" << __LINE__ << endl;
+    // cout << weight_path << endl;
     ifstream trained_data_input_stream;
     trained_data_input_stream.open(weight_path, ios::in | ios::binary);
 
     size_t block_size = 1;
     for (size_t i = 1; i < weight_shape.size(); ++i) {
-        cout << __FILE__ << "|" << __LINE__ << "|" << i << "|" << weight_shape[i] << endl;
+        // cout << __FILE__ << "|" << __LINE__ << "|" << i << "|" << weight_shape[i] << endl;
         block_size *= weight_shape[i];
     }
-    cout << __FILE__ << "|" << __LINE__ << endl;
-    cout << weight_shape[0] << "|" << block_size << endl;
+    // cout << __FILE__ << "|" << __LINE__ << endl;
+    // cout << weight_shape[0] << "|" << block_size << endl;
     size_t index = 0;
     for (size_t i = 0; i < weight_shape[0]; ++i) {
-        cout << __FILE__ << "|" << __LINE__ << "|" << i << endl;
+        // cout << __FILE__ << "|" << __LINE__ << "|" << i << endl;
         if (is_neuron_encrypted(encrypted_neurons, round, i)) {
-            cout << __FILE__ << "|" << __LINE__ << "|" << i << endl;
+            // cout << __FILE__ << "|" << __LINE__ << "|" << i << endl;
             for (size_t j = 0; j < block_size; ++j) {
                 seal.cipher_.load(seal.context_, trained_data_input_stream);
                 weight[index++] = seal.cipher_;
             }
         } else {
-            cout << __FILE__ << "|" << __LINE__ << "|" << i << endl;
+            // cout << __FILE__ << "|" << __LINE__ << "|" << i << endl;
             for (size_t j = 0; j < block_size; ++j) {
                 double weight_value = 0;
                 trained_data_input_stream.read(
@@ -87,7 +87,7 @@ vector<variant<double, Ciphertext>> read_conv_weight(
             }
         }
     }
-    cout << __FILE__ << "|" << __LINE__ << endl;
+    // cout << __FILE__ << "|" << __LINE__ << endl;
     trained_data_input_stream.close();
     return weight;
 }
@@ -114,7 +114,8 @@ vector<variant<double, Ciphertext>> read_conv_bias(
     for (size_t i = 0; i < bias.size(); ++i) {
         if (is_neuron_encrypted(encrypted_neurons, round, i)) {
             seal.cipher_.load(seal.context_, bias_instream);
-            degrade_cipher_levels(seal, seal.cipher_, 1 + (round - 1) * 3);
+            degrade_cipher_levels(
+                seal, seal.cipher_, 1 + (round - 1) * (dataset == "CIFAR10" ? 2 : 3));
             bias[i] = seal.cipher_;
         } else {
             double bias_value;
@@ -144,20 +145,17 @@ void thread_conv_worker(
     for (int i = begining; i < ending; ++i) {
         cout << __FILE__ << "|" << __LINE__ << endl;
         auto sum = bias;
+
+        cout << "sum: " << seal.context_.get_context_data(sum.parms_id())->chain_index() << endl;
         if (round == 1) {
             for (size_t channel = 0; channel < shape.conv_input[1][1]; ++channel) {
                 for (size_t a = 0; a < shape.kernal_sizes[1]; ++a) {
                     for (size_t b = 0; b < shape.kernal_sizes[1]; ++b) {
-                        if ((0 <= output_indexes[i][2] + a - 1 &&
-                             output_indexes[i][2] + a - 1 < shape.conv_input[1][2]) &&
-                            (0 <= output_indexes[i][3] + b - 1 &&
-                             output_indexes[i][3] + b - 1 < shape.conv_input[1][3])) {
+                        if (dataset == "MNIST" || dataset == "EMNIST") {
+                            cout << __FILE__ << "|" << __LINE__ << endl;
                             auto input_values = get<vector<double>>(input[get_index(
                                 shape.conv_input[1],
-                                {0,
-                                 channel,
-                                 output_indexes[i][2] + a - 1,
-                                 output_indexes[i][3] + b - 1})]);
+                                {0, channel, output_indexes[i][2] + a, output_indexes[i][3] + b})]);
                             Plaintext input_plain;
                             seal.encoder_.encode(input_values, SCALE, input_plain);
                             auto weight_cipher = get<Ciphertext>(weight[get_index(
@@ -168,6 +166,28 @@ void thread_conv_worker(
                                 weight_cipher, input_plain, multiplied_cipher);
                             seal.evaluator_.rescale_to_next_inplace(multiplied_cipher);
                             seal.evaluator_.add_inplace(sum, multiplied_cipher);
+                        } else {
+                            if ((0 <= output_indexes[i][2] + a - 1 &&
+                                 output_indexes[i][2] + a - 1 < shape.conv_input[1][2]) &&
+                                (0 <= output_indexes[i][3] + b - 1 &&
+                                 output_indexes[i][3] + b - 1 < shape.conv_input[1][3])) {
+                                auto input_values = get<vector<double>>(input[get_index(
+                                    shape.conv_input[1],
+                                    {0,
+                                     channel,
+                                     output_indexes[i][2] + a - 1,
+                                     output_indexes[i][3] + b - 1})]);
+                                Plaintext input_plain;
+                                seal.encoder_.encode(input_values, SCALE, input_plain);
+                                auto weight_cipher = get<Ciphertext>(weight[get_index(
+                                    shape.conv_weight[1], {output_indexes[i][1], channel, a, b})]);
+
+                                Ciphertext multiplied_cipher;
+                                seal.evaluator_.multiply_plain(
+                                    weight_cipher, input_plain, multiplied_cipher);
+                                seal.evaluator_.rescale_to_next_inplace(multiplied_cipher);
+                                seal.evaluator_.add_inplace(sum, multiplied_cipher);
+                            }
                         }
                     }
                 }
@@ -177,116 +197,181 @@ void thread_conv_worker(
                 shape.conv_output[1],
                 {0, output_indexes[i][1], output_indexes[i][2], output_indexes[i][3]})] = move(sum);
         } else {
+            /*double sum_value = -0.00566331;
+            seal.encoder_.encode(sum_value, SCALE, seal.plain_);
+            seal.encryptor_.encrypt_symmetric(seal.plain_, seal.cipher_);
+            auto sum = seal.cipher_;
+            degrade_cipher_levels(seal, sum, 3);*/
+            cout << "----------------------------" << endl;
             cout << __FILE__ << "|" << __LINE__ << endl;
-            for (size_t channel = 0; channel < shape.conv_output[1][1]; ++channel) {
+            cout << "sum: " << seal.context_.get_context_data(sum.parms_id())->chain_index()
+                 << endl;
+
+            cout << __FILE__ << "|" << __LINE__ << endl;
+            for (size_t channel = 0; channel < shape.conv_input[round][1]; ++channel) {
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 if (!is_neuron_encrypted(encrypted_neurons, round - 1, channel)) {
                     cout << __FILE__ << "|" << __LINE__ << endl;
                     for (size_t a = 0; a < shape.kernal_sizes[2]; ++a) {
                         for (size_t b = 0; b < shape.kernal_sizes[2]; ++b) {
-                            if ((0 <= output_indexes[i][2] + a - 1 &&
-                                 output_indexes[i][2] + a - 1 < shape.conv_input[2][2]) &&
-                                (0 <= output_indexes[i][3] + b - 1 &&
-                                 output_indexes[i][3] + b - 1 < shape.conv_input[2][3])) {
+                            if (dataset == "MNIST" || dataset == "EMNIST") {
                                 cout << __FILE__ << "|" << __LINE__ << endl;
                                 auto input_values = get<vector<double>>(input[get_index(
                                     shape.conv_input[round],
                                     {0,
                                      channel,
-                                     output_indexes[i][2] + a - 1,
-                                     output_indexes[i][3] + b - 1})]);
+                                     output_indexes[i][2] + a,
+                                     output_indexes[i][3] + b})]);
                                 cout << __FILE__ << "|" << __LINE__ << endl;
                                 Plaintext input_plain;
                                 seal.encoder_.encode(input_values, SCALE, input_plain);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
+
                                 auto weight_cipher = get<Ciphertext>(weight[get_index(
                                     shape.conv_weight[round],
                                     {output_indexes[i][1], channel, a, b})]);
                                 cout << __FILE__ << "|" << __LINE__ << endl;
                                 seal.evaluator_.multiply_plain_inplace(weight_cipher, input_plain);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
                                 seal.evaluator_.rescale_to_next_inplace(weight_cipher);
                                 cout << __FILE__ << "|" << __LINE__ << endl;
-                                if (dataset == "MNIST" || dataset == "EMNIST") {
-                                    degrade_cipher_levels(seal, weight_cipher, 3);
-                                } else {
-                                    degrade_cipher_levels(seal, weight_cipher, 2);
-                                }
+                                degrade_cipher_levels(seal, weight_cipher, 3);
                                 cout << __FILE__ << "|" << __LINE__ << endl;
                                 sum.scale() = weight_cipher.scale() = SCALE;
-                                cout << __FILE__ << "|" << __LINE__ << endl;
-                                cout << log2(sum.scale()) << "|" << log2(weight_cipher.scale())
-                                     << endl;
-                                if (dataset == "GTSRB" || dataset == "CIFAR10") {
-                                    // try
-                                    parms_id_type last_parms_id = sum.parms_id();
-                                    seal.evaluator_.mod_switch_to_inplace(
-                                        weight_cipher, last_parms_id);
-                                }
-
                                 seal.evaluator_.add_inplace(sum, weight_cipher);
                                 cout << __FILE__ << "|" << __LINE__ << endl;
+                            } else {
+                                if ((0 <= output_indexes[i][2] + a - 1 &&
+                                     output_indexes[i][2] + a - 1 < shape.conv_input[2][2]) &&
+                                    (0 <= output_indexes[i][3] + b - 1 &&
+                                     output_indexes[i][3] + b - 1 < shape.conv_input[2][3])) {
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    auto input_values = get<vector<double>>(input[get_index(
+                                        shape.conv_input[round],
+                                        {0,
+                                         channel,
+                                         output_indexes[i][2] + a - 1,
+                                         output_indexes[i][3] + b - 1})]);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    Plaintext input_plain;
+                                    seal.encoder_.encode(input_values, SCALE, input_plain);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    auto weight_cipher = get<Ciphertext>(weight[get_index(
+                                        shape.conv_weight[round],
+                                        {output_indexes[i][1], channel, a, b})]);
+
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.multiply_plain_inplace(
+                                        weight_cipher, input_plain);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.rescale_to_next_inplace(weight_cipher);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    degrade_cipher_levels(seal, weight_cipher, 2);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    sum.scale() = weight_cipher.scale() = SCALE;
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    // seal.evaluator_.add_inplace(weight_cipher, weight_cipher);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    // seal.evaluator_.add_inplace(sum, sum);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.add_inplace(sum, weight_cipher);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                }
                             }
                         }
                     }
                 } else {
                     cout << __FILE__ << "|" << __LINE__ << endl;
+                    cout << "sum: " << seal.context_.get_context_data(sum.parms_id())->chain_index()
+                         << endl;
                     for (size_t a = 0; a < shape.kernal_sizes[2]; ++a) {
                         for (size_t b = 0; b < shape.kernal_sizes[2]; ++b) {
-                            if ((0 <= output_indexes[i][2] + a - 1 &&
-                                 output_indexes[i][2] + a - 1 < shape.conv_input[2][2]) &&
-                                (0 <= output_indexes[i][3] + b - 1 &&
-                                 output_indexes[i][3] + b - 1 < shape.conv_input[2][3])) {
-                                cout << __FILE__ << "|" << __LINE__ << endl;
+                            if (dataset == string("MNIST") || dataset == string("EMNIST")) {
                                 auto input_cipher = get<Ciphertext>(input[get_index(
                                     shape.conv_input[round],
                                     {0,
                                      channel,
-                                     output_indexes[i][2] + a - 1,
-                                     output_indexes[i][3] + b - 1})]);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
+                                     output_indexes[i][2] + a,
+                                     output_indexes[i][3] + b})]);
+
                                 auto weight_cipher = get<Ciphertext>(weight[get_index(
                                     shape.conv_weight[round],
                                     {output_indexes[i][1], channel, a, b})]);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
-                                if (dataset == "MNIST" || dataset == "EMNIST") {
-                                    cout << __FILE__ << "|" << __LINE__ << endl;
-                                    degrade_cipher_levels(seal, weight_cipher, 3);
-                                } else {
-                                    cout << __FILE__ << "|" << __LINE__ << endl;
-                                    degrade_cipher_levels(seal, weight_cipher, 2);
-                                }
-                                cout << __FILE__ << "|" << __LINE__ << endl;
+
+                                degrade_cipher_levels(seal, weight_cipher, 3);
+
                                 seal.evaluator_.multiply_inplace(weight_cipher, input_cipher);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
                                 seal.evaluator_.relinearize_inplace(
                                     weight_cipher, seal.relin_keys_);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
                                 seal.evaluator_.rescale_to_next_inplace(weight_cipher);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
-                                sum.scale() = weight_cipher.scale() = SCALE;
-                                cout << __FILE__ << "|" << __LINE__ << endl;
-                                cout << log2(sum.scale()) << "|" << log2(weight_cipher.scale())
-                                     << endl;
-                                if (dataset == "GTSRB" || dataset == "CIFAR10") {
-                                    // try
-                                    parms_id_type last_parms_id = sum.parms_id();
-                                    seal.evaluator_.mod_switch_to_inplace(
-                                        weight_cipher, last_parms_id);
-                                }
 
+                                sum.scale() = weight_cipher.scale() = SCALE;
                                 seal.evaluator_.add_inplace(sum, weight_cipher);
-                                cout << __FILE__ << "|" << __LINE__ << endl;
+                            } else {
+                                if ((0 <= output_indexes[i][2] + a - 1 &&
+                                     output_indexes[i][2] + a - 1 < shape.conv_input[2][2]) &&
+                                    (0 <= output_indexes[i][3] + b - 1 &&
+                                     output_indexes[i][3] + b - 1 < shape.conv_input[2][3])) {
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    auto input_cipher = get<Ciphertext>(input[get_index(
+                                        shape.conv_input[round],
+                                        {0,
+                                         channel,
+                                         output_indexes[i][2] + a - 1,
+                                         output_indexes[i][3] + b - 1})]);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    auto weight_cipher = get<Ciphertext>(weight[get_index(
+                                        shape.conv_weight[round],
+                                        {output_indexes[i][1], channel, a, b})]);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    if (dataset == "MNIST" || dataset == "EMNIST") {
+                                        cout << __FILE__ << "|" << __LINE__ << endl;
+                                        degrade_cipher_levels(seal, weight_cipher, 3);
+                                    } else {
+                                        cout << __FILE__ << "|" << __LINE__ << endl;
+                                        degrade_cipher_levels(seal, weight_cipher, 2);
+                                    }
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.multiply_inplace(weight_cipher, input_cipher);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.relinearize_inplace(
+                                        weight_cipher, seal.relin_keys_);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.rescale_to_next_inplace(weight_cipher);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+
+                                    cout << "sum: "
+                                         << seal.context_.get_context_data(sum.parms_id())
+                                                ->chain_index()
+                                         << endl;
+                                    cout
+                                        << "weight_cipher: "
+                                        << seal.context_.get_context_data(weight_cipher.parms_id())
+                                               ->chain_index()
+                                        << endl;
+
+                                    cout << sum.scale() << "|" << weight_cipher.scale() << endl;
+
+                                    sum.scale() = weight_cipher.scale() = SCALE;
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    /*if (dataset == "GTSRB" || dataset == "CIFAR10") {
+                                        cout << __FILE__ << "|" << __LINE__ << endl;
+                                        parms_id_type last_parms_id = sum.parms_id();
+                                        cout << __FILE__ << "|" << __LINE__ << endl;
+                                        seal.evaluator_.mod_switch_to_inplace(
+                                            weight_cipher, last_parms_id);
+                                        cout << __FILE__ << "|" << __LINE__ << endl;
+                                    }*/
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                    seal.evaluator_.add_inplace(sum, weight_cipher);
+                                    cout << __FILE__ << "|" << __LINE__ << endl;
+                                }
                             }
                         }
                     }
                 }
-
-                result[get_index(
-                    shape.conv_output[round],
-                    {0, output_indexes[i][1], output_indexes[i][2], output_indexes[i][3]})] =
-                    move(sum);
             }
+            result[get_index(
+                shape.conv_output[round],
+                {0, output_indexes[i][1], output_indexes[i][2], output_indexes[i][3]})] = move(sum);
         }
     }
 }
@@ -303,9 +388,6 @@ void thread_conv(
     size_t round) {
     cout << __FILE__ << "|" << __LINE__ << endl;
     size_t processor_count = thread::hardware_concurrency();
-    if (round == 2) {
-        processor_count = 1;
-    }
     vector<size_t> threads_task_count(processor_count, output_indexes.size() / processor_count);
     threads_task_count[0] += output_indexes.size() % processor_count;
 
@@ -373,6 +455,10 @@ vector<variant<vector<double>, Ciphertext>> conv(
                 }
 
                 auto bias = std::get<Ciphertext>(conv_bias[i]);
+                cout << __FILE__ << "|" << __LINE__ << endl;
+                cout << "-------------------------------------" << endl;
+                cout << "conv1 bias: "
+                     << seal.context_.get_context_data(bias.parms_id())->chain_index() << endl;
 
                 vector<array<size_t, 4>> work_indexes;
                 for (size_t j = 0; j < output_shape[2]; ++j) {
@@ -390,17 +476,36 @@ vector<variant<vector<double>, Ciphertext>> conv(
                         double bias = get<double>(conv_bias[i]);
                         vector<double> multiplied_result(batch_size, bias);
                         for (size_t channel = 0; channel < shapes.conv_input[round][1]; ++channel) {
-                            for (size_t a = 0; a < kernal_size; ++a) {
-                                for (size_t b = 0; b < kernal_size; ++b) {
-                                    if ((0 <= j + a - 1 && j + a - 1 < shapes.conv_input[1][2]) &&
-                                        (0 <= k + b - 1 && k + b - 1 < shapes.conv_input[1][3])) {
+                            if (dataset == "MNIST" || dataset == "EMNIST") {
+                                cout << __FILE__ << "|" << __LINE__ << endl;
+                                for (size_t a = 0; a < kernal_size; ++a) {
+                                    for (size_t b = 0; b < kernal_size; ++b) {
                                         auto input_values = get<vector<double>>(input[get_index(
-                                            shapes.conv_input[1],
-                                            {0, channel, j + a - 1, k + b - 1})]);
+                                            shapes.conv_input[1], {0, channel, j + a, k + b})]);
                                         double weight_value = get<double>(conv_weight[get_index(
                                             shapes.conv_weight[1], {i, channel, a, b})]);
                                         for (size_t l = 0; l < batch_size; ++l) {
                                             multiplied_result[l] += input_values[l] * weight_value;
+                                        }
+                                    }
+                                }
+                            } else {
+                                cout << __FILE__ << "|" << __LINE__ << endl;
+                                for (size_t a = 0; a < kernal_size; ++a) {
+                                    for (size_t b = 0; b < kernal_size; ++b) {
+                                        if ((0 <= j + a - 1 &&
+                                             j + a - 1 < shapes.conv_input[1][2]) &&
+                                            (0 <= k + b - 1 &&
+                                             k + b - 1 < shapes.conv_input[1][3])) {
+                                            auto input_values = get<vector<double>>(input[get_index(
+                                                shapes.conv_input[1],
+                                                {0, channel, j + a - 1, k + b - 1})]);
+                                            double weight_value = get<double>(conv_weight[get_index(
+                                                shapes.conv_weight[1], {i, channel, a, b})]);
+                                            for (size_t l = 0; l < batch_size; ++l) {
+                                                multiplied_result[l] +=
+                                                    input_values[l] * weight_value;
+                                            }
                                         }
                                     }
                                 }
@@ -429,6 +534,9 @@ vector<variant<vector<double>, Ciphertext>> conv(
                 }
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 Ciphertext bias = get<Ciphertext>(conv_bias[i]);
+                cout << "-------------------------------------" << endl;
+                cout << "conv2 bias: "
+                     << seal.context_.get_context_data(bias.parms_id())->chain_index() << endl;
 
                 vector<array<size_t, 4>> work_indexes;
                 for (size_t j = 0; j < output_shape[2]; ++j) {
@@ -449,18 +557,34 @@ vector<variant<vector<double>, Ciphertext>> conv(
                             if (!is_neuron_encrypted(encrypted_neurons, round - 1, channel)) {
                                 for (size_t a = 0; a < kernal_size; ++a) {
                                     for (size_t b = 0; b < kernal_size; ++b) {
-                                        if ((0 <= j + a - 1 &&
-                                             j + a - 1 < shapes.conv_input[round][2]) &&
-                                            (0 <= k + b - 1 &&
-                                             k + b - 1 < shapes.conv_input[round][3])) {
+                                        if (dataset == string("MNIST") ||
+                                            dataset == string("EMNIST")) {
                                             auto input_values = get<vector<double>>(input[get_index(
                                                 shapes.conv_input[round],
-                                                {0, channel, j + a - 1, k + b - 1})]);
+                                                {0, channel, j + a, k + b})]);
                                             double weight_value = get<double>(conv_weight[get_index(
                                                 shapes.conv_weight[round], {i, channel, a, b})]);
                                             for (size_t l = 0; l < batch_size; ++l) {
                                                 multiplied_result[l] +=
                                                     input_values[l] * weight_value;
+                                            }
+                                        } else {
+                                            if ((0 <= j + a - 1 &&
+                                                 j + a - 1 < shapes.conv_input[round][2]) &&
+                                                (0 <= k + b - 1 &&
+                                                 k + b - 1 < shapes.conv_input[round][3])) {
+                                                auto input_values =
+                                                    get<vector<double>>(input[get_index(
+                                                        shapes.conv_input[round],
+                                                        {0, channel, j + a - 1, k + b - 1})]);
+                                                double weight_value =
+                                                    get<double>(conv_weight[get_index(
+                                                        shapes.conv_weight[round],
+                                                        {i, channel, a, b})]);
+                                                for (size_t l = 0; l < batch_size; ++l) {
+                                                    multiplied_result[l] +=
+                                                        input_values[l] * weight_value;
+                                                }
                                             }
                                         }
                                     }
@@ -788,7 +912,7 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
     return result;
 }
 
-void worker(char *dataset, int batch_size, double *input_data, mode work_mode = separate_) {
+void worker(const char *dataset, int batch_size, double *input_data, mode work_mode = separate_) {
     SEALPACK seal(work_mode);
     auto shape = Shapes[string(dataset)];
 
@@ -844,13 +968,25 @@ void worker(char *dataset, int batch_size, double *input_data, mode work_mode = 
             } else {
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 square_activate(dataset, seal, conv_result);
-                save_worker_result(dataset, conv_result);
-                return;
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 input = move(conv_result);
                 cout << __FILE__ << "|" << __LINE__ << endl;
             }
         }
     }
+}
+
+int main(int argc, char *argv[]) {
+    cout << "Hello World!" << endl;
+
+    double *data = new double[2500 * 3 * 32 * 32];
+    cout << __FILE__ << "|" << __LINE__ << endl;
+    for (size_t i = 0; i < 2500; ++i) {
+        data[i] = 1;
+    }
+    cout << __FILE__ << "|" << __LINE__ << endl;
+    worker("CIFAR10", 2500, data);
+    cout << __FILE__ << "|" << __LINE__ << endl;
+    return 0;
 }
 }

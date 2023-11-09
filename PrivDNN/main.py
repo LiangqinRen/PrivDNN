@@ -74,8 +74,6 @@ if __name__ == "__main__":
         worker.recover_model(args, logger, trained_model, dataloaders, model_path)
         # worker.train_from_scratch(args, logger, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.fhe_inference:
-        if args.dataset == "MNIST":
-            model_path = model_path.replace(".pth", "_cpp.pth")
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
 
@@ -87,6 +85,9 @@ if __name__ == "__main__":
         # logger.info("SEAL remove inference:")
         # worker.test_model(logger, trained_model, dataloaders)
 
+        # if args.dataset == "MNIST":
+        #    model_path = model_path.replace(".pth", "_cpp.pth")
+        # trained_model = worker.load_trained_model(model_path)
         # trained_model.cpp_work_mode = models.CppWorkMode.full
         # logger.info("SEAL full inference:")
         # worker.test_model(logger, trained_model, dataloaders)

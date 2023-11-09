@@ -23,7 +23,7 @@ for line in results:
     )
 
 
-top = 3
+top = 1
 for neurons in neuron_combination.keys():
     points = []  # float, [], {}
     for combination in neuron_combination[neurons]:
@@ -33,9 +33,7 @@ for neurons in neuron_combination.keys():
 
         points.append(
             [
-                utils.get_neuron_point(
-                    "EMNIST", separating_accuracy, removing_accuracy
-                ),
+                utils.get_neuron_point(file, separating_accuracy, removing_accuracy),
                 [separating_accuracy, removing_accuracy],
                 selected_neurons,
             ]
