@@ -1,9 +1,9 @@
 #!/bin/bash
 
-dataset="CIFAR10"
+dataset="MNIST"
 
 declare -A accuracy
-accuracy=(["MNIST"]='99.36' ["EMNIST"]='92.62' ["GTSRB"]='93.24' ["CIFAR10"]='90.32')
+accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76')
 
 
 if [[ $1 == 'train' ]]
@@ -16,7 +16,7 @@ then
     python ../PrivDNN/main.py --dataset $dataset --model_work_mode 2
 
     # test the model performance with selected filters
-    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 2 --selected_neurons_file "selected_neurons_100%.json" --accuracy_base ${accuracy[$dataset]}
+    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 2 --selected_neurons_file "selected_neurons.json" --accuracy_base ${accuracy[$dataset]}
 elif [[ $1 == 'select' ]]
 then
     # select filters, the main file decides the algorithm to use

@@ -44,7 +44,17 @@ const Shape emnist{
     {{1, {10, 1, 5, 5}}, {2, {20, 10, 5, 5}}},
     {{1, 10}, {2, 20}},
     {{1, {1, 10, 24, 24}}, {2, {1, 20, 8, 8}}},
-    {{1, {1, 10, 12, 12}}, {2, {1, 20, 4, 4}}},
+    {{1, {1, 96, 15, 15}}, {2, {1, 256, 7, 7}}},
+};
+
+const Shape gtsrb{
+    {{1, 5}, {2, 3}},
+    {{1, {1, 3, 32, 32}}, {2, {1, 96, 15, 15}}},
+    {{1, {1, 96, 30, 30}}, {2, {1, 256, 15, 15}}},
+    {{1, {96, 3, 5, 5}}, {2, {256, 96, 3, 3}}},
+    {{1, 96}, {2, 256}},
+    {{1, {1, 96, 30, 30}}, {2, {1, 256, 15, 15}}},
+    {{1, {1, 96, 15, 15}}, {2, {1, 256, 7, 7}}},
 };
 
 const Shape cifar10{
@@ -58,8 +68,8 @@ const Shape cifar10{
 static unordered_map<string, struct Shape> Shapes{
     {string("MNIST"), mnist},
     {string("EMNIST"), emnist},
-    //{"GTSRB", gtsrb},
-    {"CIFAR10", cifar10}};
+    {string("GTSRB"), gtsrb},
+    {string("CIFAR10"), cifar10}};
 
 void update_shape_size(Shape &shape, size_t batch_size);
 

@@ -30,9 +30,9 @@ class MaskedLayer(nn.Module):
         self.neurons_to_remove = None
         self.remove_mask = None
 
-        # seperate
+        # separate
         self.weight_backup = None
-        self.seperate_weight = None
+        self.separate_weight = None
         self.last_layer_neurons_subset = None
         self.current_layer_neurons_subset = None
 
@@ -57,22 +57,22 @@ class MaskedLayer(nn.Module):
             self.last_layer_neurons_subset is None
             and self.current_layer_neurons_subset is None
         ):
-            # seperate
-            if self.seperate_weight is None:
+            # separate
+            if self.separate_weight is None:
                 output_channel_count = self.layer.out_channels
                 with torch.no_grad():
-                    current_layer_seperate = [
+                    current_layer_separate = [
                         x
                         for x in range(output_channel_count)
                         if x not in self.current_layer_neurons_subset
                     ]
 
-                    for current_layer_neuron in current_layer_seperate:
+                    for current_layer_neuron in current_layer_separate:
                         for last_layer_neuron in self.last_layer_neurons_subset:
                             self.layer.weight[current_layer_neuron][
                                 last_layer_neuron
                             ] = 0
-                    self.seperate_weight = self.layer.weight
+                    self.separate_weight = self.layer.weight
 
             output = self.layer(input)
         else:
@@ -106,14 +106,14 @@ class MaskedLayer(nn.Module):
         ):
             self.last_layer_neurons_subset = last_layer_neurons_subset
             self.current_layer_neurons_subset = current_layer_neurons_subset
-            self.seperate_weight = None
+            self.separate_weight = None
 
     def clear_neurons_to_separate(self):
         # unreliable!
         if not self.weight_backup is None:
             self.last_layer_neurons_subset = None
             self.current_layer_neurons_subset = None
-            self.seperate_weight = None
+            self.separate_weight = None
             self.layer.weight = self.weight_backup
             self.weight_backup = None
 
@@ -506,7 +506,6 @@ class SplitGTSRBNet(SplitNet):
             )
             for _ in range(96)
         ]
-        self.batch_normal1_layer = nn.BatchNorm2d(96)
 
         self.conv2_layers = [
             MaskedLayer(
@@ -585,10 +584,7 @@ class SplitGTSRBNet(SplitNet):
             or self.work_mode == WorkMode.recover
         ):
             conv1_output = self._conv(self.conv1_layers, input)
-            conv1_output = self.batch_normal1_layer(conv1_output)
-
-            conv1_output = self._activate(conv1_output, [torch.square, F.relu])
-            avg_pool1_output = self.avg_pool_layer(conv1_output)
+            avg_pool1_output = torch.square(self.avg_pool_layer(conv1_output))
 
             conv2_output = self._conv(self.conv2_layers, avg_pool1_output)
             conv2_output = self.batch_normal2_layer(conv2_output)
@@ -609,8 +605,91 @@ class SplitGTSRBNet(SplitNet):
             fc1_output = self.dropout(F.relu(self.fc1_layer(fc1_input)))
             fc2_output = self.dropout(F.relu(self.fc2_layer(fc1_output)))
             output = self.fc3_layer(fc2_output)
+        elif self.work_mode == WorkMode.cipher:
+            work_mode = int(  # 0 separate, 1 remove
+                0 if self.cpp_work_mode == CppWorkMode.separate else 1
+            )
+
+            client_library = ctypes.CDLL("../seal/output/lib/libclient.so")
+            server_library = ctypes.CDLL("../seal/output/lib/libserver.so")
+
+            cpp_is_file_complete = server_library.is_file_complete
+            cpp_is_file_complete.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+            ]
+            cpp_is_file_complete.restype = ctypes.c_bool
+
+            if not cpp_is_file_complete(
+                b"GTSRB",
+                work_mode,
+            ):
+                cpp_save_trained_data = server_library.save_trained_data
+                cpp_save_trained_data.argtypes = [
+                    ctypes.c_char_p,
+                    ctypes.POINTER(ctypes.c_double),
+                    ctypes.c_int,
+                ]
+
+                trained_data_pointer = self._get_trained_data_pointer("GTSRB")
+                cpp_save_trained_data(
+                    b"GTSRB",
+                    trained_data_pointer,
+                    work_mode,
+                )
+
+            cpp_worker = client_library.worker
+            cpp_worker.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_double),
+                ctypes.c_int,
+            ]
+
+            input_list = torch.flatten(input).tolist()
+            input_pointer = (ctypes.c_double * len(input_list))(*input_list)
+            cpp_worker(b"GTSRB", input.shape[0], input_pointer, work_mode)
+
+            cpp_get_result = server_library.get_result
+            cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+            cpp_get_result.restype = ctypes.POINTER(ctypes.c_double)
+
+            if (
+                self.cpp_work_mode == CppWorkMode.separate
+                or self.cpp_work_mode == CppWorkMode.remove
+            ):
+                conv2_output = cpp_get_result(
+                    b"GTSRB",
+                    input.shape[0],  # batch size
+                    work_mode,
+                )
+
+                conv2_output = [
+                    conv2_output[i] for i in range(input.shape[0] * 256 * 15 * 15)
+                ]
+                conv2_output = torch.reshape(
+                    torch.FloatTensor(conv2_output), [input.shape[0], 256, 15, 15]
+                ).cuda()
+                conv2_output = self.batch_normal2_layer(conv2_output)
+                conv2_output = F.relu(conv2_output)
+                max_pool2_output = self.max_pool_layer(conv2_output)
+
+                conv3_output = self.conv3_layers[0](max_pool2_output)
+                conv3_output = F.relu(conv3_output)
+
+                conv4_output = self.conv4_layers[0](conv3_output)
+                conv4_output = F.relu(conv4_output)
+
+                conv5_output = self.conv5_layers[0](conv4_output)
+                conv5_output = F.relu(conv5_output)
+                max_pool5_output = self.max_pool_layer(conv5_output)
+
+                fc1_input = max_pool5_output.reshape(max_pool5_output.shape[0], -1)
+                fc1_output = self.dropout(F.relu(self.fc1_layer(fc1_input)))
+                fc2_output = self.dropout(F.relu(self.fc2_layer(fc1_output)))
+                output = self.fc3_layer(fc2_output)
         else:
-            raise Exception("SplitMNISTNet unknown work mode")
+            raise Exception("SplitGTSRBNet unknown work mode")
 
         return output
 
@@ -626,7 +705,6 @@ class SplitGTSRBNet(SplitNet):
         if include_fc_layers:
             layers_list.extend(
                 [
-                    self.batch_normal1_layer,
                     self.batch_normal2_layer,
                     self.fc1_layer,
                     self.fc2_layer,
@@ -651,7 +729,6 @@ class SplitCIFAR10Net(SplitNet):
             )
             for _ in range(64)
         ]
-        # self.batch_normal1_layer = nn.BatchNorm2d(64)
 
         self.conv2_layers = [
             MaskedLayer(

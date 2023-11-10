@@ -10,6 +10,7 @@
 #include <variant>
 
 extern "C" {
+using namespace std;
 
 size_t get_index(const array<size_t, 4> &shape, const array<size_t, 4> &indexes) {
     size_t index = 0, d_size = 1;
@@ -244,6 +245,7 @@ void thread_conv_worker(
                                     (0 <= output_indexes[i][3] + b - 1 &&
                                      output_indexes[i][3] + b - 1 < shape.conv_input[2][3])) {
                                     cout << __FILE__ << "|" << __LINE__ << endl;
+                                    cout << input.size() << endl;
                                     auto input_values = get<vector<double>>(input[get_index(
                                         shape.conv_input[round],
                                         {0,
@@ -264,7 +266,8 @@ void thread_conv_worker(
                                     cout << __FILE__ << "|" << __LINE__ << endl;
                                     seal.evaluator_.rescale_to_next_inplace(weight_cipher);
                                     cout << __FILE__ << "|" << __LINE__ << endl;
-                                    degrade_cipher_levels(seal, weight_cipher, 2);
+                                    degrade_cipher_levels(
+                                        seal, weight_cipher, dataset == "CIFAR10" ? 2 : 3);
                                     cout << __FILE__ << "|" << __LINE__ << endl;
                                     sum.scale() = weight_cipher.scale() = SCALE;
                                     cout << __FILE__ << "|" << __LINE__ << endl;
@@ -322,13 +325,9 @@ void thread_conv_worker(
                                         shape.conv_weight[round],
                                         {output_indexes[i][1], channel, a, b})]);
                                     cout << __FILE__ << "|" << __LINE__ << endl;
-                                    if (dataset == "MNIST" || dataset == "EMNIST") {
-                                        cout << __FILE__ << "|" << __LINE__ << endl;
-                                        degrade_cipher_levels(seal, weight_cipher, 3);
-                                    } else {
-                                        cout << __FILE__ << "|" << __LINE__ << endl;
-                                        degrade_cipher_levels(seal, weight_cipher, 2);
-                                    }
+
+                                    degrade_cipher_levels(
+                                        seal, weight_cipher, dataset == "CIFAR10" ? 2 : 3);
                                     cout << __FILE__ << "|" << __LINE__ << endl;
                                     seal.evaluator_.multiply_inplace(weight_cipher, input_cipher);
                                     cout << __FILE__ << "|" << __LINE__ << endl;
@@ -388,6 +387,9 @@ void thread_conv(
     size_t round) {
     cout << __FILE__ << "|" << __LINE__ << endl;
     size_t processor_count = thread::hardware_concurrency();
+    if (round == 2) {
+        processor_count = 1;
+    }
     vector<size_t> threads_task_count(processor_count, output_indexes.size() / processor_count);
     threads_task_count[0] += output_indexes.size() % processor_count;
 
@@ -959,18 +961,21 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
             }
         } else {
             cout << __FILE__ << "|" << __LINE__ << endl;
-            if (string(dataset) == string("MNIST") || string(dataset) == string("EMNIST")) {
-                cout << __FILE__ << "|" << __LINE__ << endl;
-                auto avg_pool_result = avg_pool(dataset, seal, shape, round, conv_result);
-                vector<variant<vector<double>, Ciphertext>>().swap(conv_result);
-                square_activate(dataset, seal, avg_pool_result);
-                input = move(avg_pool_result);
-            } else {
+            if (string(dataset) == string("CIFAR10")) {
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 square_activate(dataset, seal, conv_result);
                 cout << __FILE__ << "|" << __LINE__ << endl;
                 input = move(conv_result);
                 cout << __FILE__ << "|" << __LINE__ << endl;
+            } else {
+                cout << __FILE__ << "|" << __LINE__ << endl;
+                cout << conv_result.size() << endl;
+                auto avg_pool_result = avg_pool(dataset, seal, shape, round, conv_result);
+                cout << avg_pool_result.size() << endl;
+                vector<variant<vector<double>, Ciphertext>>().swap(conv_result);
+                square_activate(dataset, seal, avg_pool_result);
+                input = move(avg_pool_result);
+                cout << input.size() << endl;
             }
         }
     }
@@ -978,15 +983,6 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
 
 int main(int argc, char *argv[]) {
     cout << "Hello World!" << endl;
-
-    double *data = new double[2500 * 3 * 32 * 32];
-    cout << __FILE__ << "|" << __LINE__ << endl;
-    for (size_t i = 0; i < 2500; ++i) {
-        data[i] = 1;
-    }
-    cout << __FILE__ << "|" << __LINE__ << endl;
-    worker("CIFAR10", 2500, data);
-    cout << __FILE__ << "|" << __LINE__ << endl;
     return 0;
 }
 }
