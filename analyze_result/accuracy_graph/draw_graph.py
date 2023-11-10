@@ -102,8 +102,8 @@ def draw_accuracy_distribution(dataset, data_source):
 
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     main_graph = fig.add_axes([left, bottom, width, height])
-    main_graph.set_xlabel("A$_s$")
-    main_graph.set_ylabel("A$_r$")
+    main_graph.set_xlabel("A$_s $(%)")
+    main_graph.set_ylabel("A$_r $(%)")
 
     main_graph.scatter(
         separate_accuracy,
