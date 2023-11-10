@@ -75,7 +75,7 @@ def draw_ranking_accuracy(point_count, dataset, data_source):
     plt.legend(loc="lower left")
     plt.title(dataset)
 
-    plt.savefig(f"{dataset}_accuracy.png")
+    plt.savefig(f"{dataset}_accuracy.png", dpi=600)
     plt.close()
 
 
@@ -178,7 +178,7 @@ def draw_accuracy_distribution(dataset, data_source):
         ticks=[1, len(data_source)],
     )
 
-    plt.savefig(f"{dataset}_distribution.png")
+    plt.savefig(f"{dataset}_distribution.png", dpi=600)
     plt.close()
 
 
