@@ -102,8 +102,8 @@ def draw_accuracy_distribution(dataset, data_source):
 
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     main_graph = fig.add_axes([left, bottom, width, height])
-    main_graph.set_xlabel("A$_s $(%)")
-    main_graph.set_ylabel("A$_r $(%)")
+    main_graph.set_xlabel("A$_s $(%)", fontsize=11)
+    main_graph.set_ylabel("A$_r $(%)", fontsize=11)
 
     main_graph.scatter(
         separate_accuracy,
@@ -133,6 +133,7 @@ def draw_accuracy_distribution(dataset, data_source):
             remove_accuracy[0] + position[dataset][1],
         ),
         arrowprops={"arrowstyle": "->"},
+        fontsize=10,
     )
 
     # worst
@@ -154,6 +155,7 @@ def draw_accuracy_distribution(dataset, data_source):
             remove_accuracy[-1] + position[dataset][3],
         ),
         arrowprops={"arrowstyle": "->"},
+        fontsize=10,
     )
 
     main_graph.set_title(dataset)
