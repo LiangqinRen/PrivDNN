@@ -2,9 +2,9 @@ import math
 
 accuracy_bases = {
     "MNIST": 99.36,
-    "EMNIST": 92.62,
-    "GTSRB": 93.24,
-    "CIFAR10": 89.12,
+    "EMNIST": 93.08,
+    "GTSRB": 93.51,
+    "CIFAR10": 90.76,
 }
 
 
