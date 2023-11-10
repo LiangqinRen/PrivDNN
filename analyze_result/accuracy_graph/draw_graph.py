@@ -17,13 +17,14 @@ def calculate_selection_ranking(dataset, data_path):
             (1, 3),
             (1, 4),
             (1, 5),
+            (1, 6),
             (2, 2),
             (2, 3),
             (2, 4),
             (2, 5),
             (2, 6),
         ],
-        "EMNIST": [(1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4)],
+        "EMNIST": [(1, 1), (1, 2), (1, 3), (1, 4), (2, 2), (2, 3), (2, 4)],
     }
 
     selection_data = []
@@ -112,11 +113,11 @@ def draw_accuracy_distribution(dataset, data_source):
         s=0.5,
     )
 
-    position = {"MNIST": (1.25, -1, -6, -3), "EMNIST": (2.3, 0, -10, -3)}
+    position = {"MNIST": (1.25, -1, -6, -3), "EMNIST": (2.1, 0, -10, -3)}
     # best
     best_annotation = {
         "MNIST": "best\nA$_s$:99.26\nA$_r$:77.32",
-        "EMNIST": "best\nA$_s$:92.55\nA$_r$:76.31",
+        "EMNIST": "best\nA$_s$:92.94\nA$_r$:69.22",
     }
     main_graph.scatter(
         separate_accuracy[0],
@@ -136,8 +137,8 @@ def draw_accuracy_distribution(dataset, data_source):
 
     # worst
     worst_annotation = {
-        "MNIST": "worst\nA$_s$:92.12\nA$_r$:93.44",
-        "EMNIST": "worst\nA$_s$:68.92\nA$_r$:66.88",
+        "MNIST": "worst\nA$_s$:92.12\nA$_r$:93.42",
+        "EMNIST": "worst\nA$_s$:68.87\nA$_r$:69.92",
     }
     main_graph.scatter(
         separate_accuracy[-1],
