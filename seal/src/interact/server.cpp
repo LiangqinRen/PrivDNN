@@ -110,8 +110,6 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         if (is_neuron_encrypted(encryped_neurons, 1, i)) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
-            cout << __FILE__ << "|" << __LINE__ << "|conv1bias|"
-                 << context.get_context_data(temp_cipher.parms_id())->chain_index() << endl;
             temp_cipher.save(conv1_bias_outstream);
         } else {
             double temp_number = trained_data[trained_data_index];
@@ -167,8 +165,6 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         if (is_neuron_encrypted(encryped_neurons, 2, i)) {
             encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
             encryptor.encrypt_symmetric(temp_plain, temp_cipher);
-            cout << __FILE__ << "|" << __LINE__ << "|conv2bias|"
-                 << context.get_context_data(temp_cipher.parms_id())->chain_index() << endl;
             temp_cipher.save(conv2_bias_outstream);
         } else {
             double temp_number = trained_data[trained_data_index];
