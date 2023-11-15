@@ -61,11 +61,47 @@ MNIST_pruning_greedy_selections = [
     {1: [1, 3], 2: [1, 2, 3, 10, 11, 15]},
 ]
 
-MNIST_greedy_selections = []
+MNIST_greedy_selections = [
+    {1: [4], 2: [8]},
+    {1: [4], 2: [8, 11]},
+    {1: [4], 2: [8, 11, 0]},
+    {1: [4], 2: [8, 11, 0, 9]},
+    {1: [4], 2: [8, 11, 0, 9, 4]},
+    {1: [4], 2: [8, 11, 0, 9, 4, 14]},
+    {1: [4, 5], 2: [8, 11]},
+    {1: [4, 5], 2: [8, 11, 1]},
+    {1: [4, 5], 2: [8, 11, 1, 6]},
+    {1: [4, 5], 2: [8, 11, 1, 6, 3]},
+    {1: [4, 5], 2: [8, 11, 1, 6, 3, 2]},
+]
 
-MNIST_pfec_and_greedy_selections = []
+MNIST_pfec_and_greedy_selections = [
+    {1: [4], 2: [14]},
+    {1: [4], 2: [14, 13]},
+    {1: [4], 2: [1, 14, 13]},
+    {1: [4], 2: [1, 14, 12, 13]},
+    {1: [4], 2: [11, 15, 6, 12, 1]},
+    {1: [4], 2: [11, 15, 6, 0, 2, 12]},
+    {1: [4, 5], 2: [13, 14]},
+    {1: [4, 5], 2: [1, 14, 13]},
+    {1: [4, 5], 2: [12, 1, 14, 6]},
+    {1: [4, 5], 2: [12, 1, 11, 6, 15]},
+    {1: [4, 5], 2: [12, 1, 11, 6, 2, 15]},
+]
 
-MNIST_fpgm_and_greedy_selections = []
+MNIST_fpgm_and_greedy_selections = [
+    {1: [4], 2: [1]},
+    {1: [4], 2: [1, 14]},
+    {1: [4], 2: [1, 14, 12]},
+    {1: [4], 2: [1, 14, 12, 13]},
+    {1: [4], 2: [11, 15, 6, 12, 1]},
+    {1: [4], 2: [11, 15, 6, 0, 2, 12]},
+    {1: [4, 5], 2: [12, 1]},
+    {1: [4, 5], 2: [12, 1, 14]},
+    {1: [4, 5], 2: [12, 1, 14, 15]},
+    {1: [4, 5], 2: [12, 1, 11, 6, 15]},
+    {1: [4, 5], 2: [12, 1, 11, 6, 2, 15]},
+]
 
 EMNIST_pruning_norm_selections = [
     {1: [9], 2: [15]},
@@ -107,11 +143,35 @@ EMNIST_pruning_greedy_selections = [
     {1: [4, 8], 2: [7, 8, 15, 19]},
 ]
 
-EMNIST_greedy_selections = []
+EMNIST_greedy_selections = [
+    {1: [4], 2: [12]},
+    {1: [4], 2: [12, 8]},
+    {1: [4], 2: [12, 8, 2]},
+    {1: [4], 2: [12, 8, 2, 11]},
+    {1: [4, 2], 2: [8, 12]},
+    {1: [4, 2], 2: [8, 12, 2]},
+    {1: [4, 2], 2: [8, 12, 2, 7]},
+]
 
-EMNIST_pfec_and_greedy_selections = []
+EMNIST_pfec_and_greedy_selections = [
+    {1: [4], 2: [6]},
+    {1: [4], 2: [12, 7]},
+    {1: [4], 2: [12, 7, 0]},
+    {1: [4], 2: [12, 7, 0, 6]},
+    {1: [4, 2], 2: [12, 7]},
+    {1: [4, 2], 2: [12, 7, 0]},
+    {1: [4, 2], 2: [12, 7, 0, 6]},
+]
 
-EMNIST_fpgm_and_greedy_selections = []
+EMNIST_fpgm_and_greedy_selections = [
+    {1: [4], 2: [3]},
+    {1: [4], 2: [8, 7]},
+    {1: [4], 2: [12, 8, 7]},
+    {1: [4], 2: [12, 8, 2, 6]},
+    {1: [4, 2], 2: [8, 7]},
+    {1: [4, 2], 2: [8, 12, 7]},
+    {1: [4, 2], 2: [8, 12, 2, 7]},
+]
 
 our_selections = (
     [
@@ -119,9 +179,9 @@ our_selections = (
         MNIST_pruning_fpgm_selections,
         MNIST_pruning_hrank_selections,
         MNIST_pruning_greedy_selections,
-        # MNIST_greedy_selections,
-        # MNIST_pfec_and_greedy_selections,
-        # MNIST_fpgm_and_greedy_selections,
+        MNIST_greedy_selections,
+        MNIST_pfec_and_greedy_selections,
+        MNIST_fpgm_and_greedy_selections,
     ]
     if file == "MNIST"
     else [
@@ -129,9 +189,9 @@ our_selections = (
         EMNIST_pruning_fpgm_selections,
         EMNIST_pruning_hrank_selections,
         EMNIST_pruning_greedy_selections,
-        # EMNIST_greedy_selections,
-        # EMNIST_pfec_and_greedy_selections,
-        # EMNIST_fpgm_and_greedy_selections,
+        EMNIST_greedy_selections,
+        EMNIST_pfec_and_greedy_selections,
+        EMNIST_fpgm_and_greedy_selections,
     ]
 )
 
@@ -161,9 +221,10 @@ for selections in complete_selections:
     complete_selections[selections] = original_selections
 
 # sort our selections neurons order
-for our_selection in our_selections:
-    our_selection[1][1] = sorted(our_selection[1][1])
-    our_selection[1][2] = sorted(our_selection[1][2])
+for algorithm_selection in our_selections:
+    for selection in algorithm_selection:
+        selection[1].sort()
+        selection[2].sort()
 
 # search for rankings
 for first_count in range(1, 3):
