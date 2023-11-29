@@ -2,6 +2,12 @@
 
 extern "C" {
 
+void print_current_time() {
+    auto current_time = time(nullptr);
+    auto format_time = *localtime(&current_time);
+    cout << std::put_time(&format_time, "%Y-%m-%d %H:%M:%S") << std::endl;
+}
+
 void update_shape_size(Shape &shape, size_t batch_size) {
     shape.conv_input[1][0] = batch_size;
     shape.conv_input[2][0] = batch_size;

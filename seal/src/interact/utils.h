@@ -14,6 +14,8 @@ using namespace seal;
 
 extern "C" {
 
+void print_current_time();
+
 struct Shape {
     unordered_map<size_t, size_t> kernal_sizes;
     unordered_map<size_t, array<size_t, 4>> conv_input;

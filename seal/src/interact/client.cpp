@@ -818,10 +818,8 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
     update_shape_size(shape, batch_size);
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
     auto input = recombine_input(shape.conv_input[1], input_data);
-
     for (size_t round = 1; round <= shape.conv_input.size(); ++round) {
         auto conv_result = conv(dataset, seal, shape, round, input, encrypted_neurons, work_mode);
-
         if (round == 2) {
             if (work_mode == separate_ or work_mode == remove_) {
                 save_worker_result(dataset, conv_result);
@@ -864,6 +862,7 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
 
 int main(int argc, char *argv[]) {
     cout << "Hello World!" << endl;
+    print_current_time();
     return 0;
 }
 }
