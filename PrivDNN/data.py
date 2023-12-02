@@ -32,9 +32,7 @@ def use_partial_dataloaders(dataloaders, percent=None, count=None, mode=None):
     )
 
 
-def get_MNIST_dataloader(
-    model_work_mode=utils.ModelWorkMode.train, use_train_set_percent=100
-):
+def get_MNIST_dataloader(use_train_set_percent=100):
     data_folder = "../data"
     validate_ratio_in_testset = 0.5
 
@@ -61,18 +59,16 @@ def get_MNIST_dataloader(
         torch.manual_seed(0),
     )  # split the dataset definitely, because we want to get a stable result"""
 
-    batch_size = 128
-    fhe_batch_size = 8192
     dataloaders = {
         "name": "MNIST",
         "epoch": 128,
-        "train": DataLoader(train_dataset, batch_size=batch_size, shuffle=True),
-        "validate": DataLoader(validate_dataset, batch_size=batch_size, shuffle=True),
+        "train": DataLoader(train_dataset, batch_size=128, shuffle=True),
+        "validate": DataLoader(
+            validate_dataset, batch_size=len(validate_dataset), shuffle=True
+        ),
         "test": DataLoader(
             test_dataset,
-            batch_size=fhe_batch_size
-            if model_work_mode == utils.ModelWorkMode.fhe_inference
-            else batch_size,
+            batch_size=len(test_dataset),
             shuffle=True,
             pin_memory=True,
         ),
@@ -81,9 +77,7 @@ def get_MNIST_dataloader(
     return dataloaders
 
 
-def get_EMNIST_dataloader(
-    model_work_mode=utils.ModelWorkMode.train, use_train_set_percent=100
-):
+def get_EMNIST_dataloader(use_train_set_percent=100):
     data_folder = "../data"
     validate_ratio_in_testset = 0.5
 
@@ -119,17 +113,16 @@ def get_EMNIST_dataloader(
     )  # split the dataset definitely, because we want to get a stable result"""
 
     batch_size = 128
-    fhe_batch_size = 8192
     dataloaders = {
         "name": "EMNIST",
         "epoch": 128,
         "train": DataLoader(train_dataset, batch_size=batch_size, shuffle=True),
-        "validate": DataLoader(validate_dataset, batch_size=batch_size, shuffle=True),
+        "validate": DataLoader(
+            validate_dataset, batch_size=len(validate_dataset), shuffle=True
+        ),
         "test": DataLoader(
             test_dataset,
-            batch_size=fhe_batch_size
-            if model_work_mode == utils.ModelWorkMode.fhe_inference
-            else batch_size,
+            batch_size=len(test_dataset),
             shuffle=True,
         ),
     }
@@ -137,9 +130,7 @@ def get_EMNIST_dataloader(
     return dataloaders
 
 
-def get_GTSRB_dataloader(
-    model_work_mode=utils.ModelWorkMode.train, use_train_set_percent=100
-):
+def get_GTSRB_dataloader(use_train_set_percent=100):
     data_folder = "../data"
     validate_ratio_in_testset = 0.5
 
@@ -183,18 +174,16 @@ def get_GTSRB_dataloader(
         torch.manual_seed(0),
     )  # split the dataset definitely, because we want to get a stable result"""
 
-    batch_size = 128
-    fhe_batch_size = 8192
     dataloaders = {
         "name": "GTSRB",
         "epoch": 128,
-        "train": DataLoader(train_dataset, batch_size=batch_size, shuffle=True),
-        "validate": DataLoader(validate_dataset, batch_size=batch_size, shuffle=True),
+        "train": DataLoader(train_dataset, batch_size=128, shuffle=True),
+        "validate": DataLoader(
+            validate_dataset, batch_size=len(validate_dataset), shuffle=True
+        ),
         "test": DataLoader(
             test_dataset,
-            batch_size=fhe_batch_size
-            if model_work_mode == utils.ModelWorkMode.fhe_inference
-            else batch_size,
+            batch_size=len(test_dataset),
             shuffle=True,
         ),
     }
@@ -202,9 +191,7 @@ def get_GTSRB_dataloader(
     return dataloaders
 
 
-def get_CIFAR10_dataloader(
-    model_work_mode=utils.ModelWorkMode.train, use_train_set_percent=100
-):
+def get_CIFAR10_dataloader(use_train_set_percent=100):
     data_folder = "../data"
     validate_ratio_in_testset = 0.5
 
@@ -242,23 +229,20 @@ def get_CIFAR10_dataloader(
     validate_dataset_count = int(len(total_test_dataset) * validate_ratio_in_testset)
     validate_dataset, test_dataset = random_split(
         total_test_dataset,
-        [len(total_test_dataset) - 2500, 2500],
-        # [validate_dataset_count, len(total_test_dataset) - validate_dataset_count],
+        [validate_dataset_count, len(total_test_dataset) - validate_dataset_count],
         torch.manual_seed(0),
     )  # split the dataset definitely, because we want to get a stable result"""
 
-    batch_size = 128
-    fhe_batch_size = 2500
     dataloaders = {
         "name": "CIFAR10",
         "epoch": 128,
-        "train": DataLoader(train_dataset, batch_size=batch_size, shuffle=True),
-        "validate": DataLoader(validate_dataset, batch_size=batch_size, shuffle=True),
+        "train": DataLoader(train_dataset, batch_size=128, shuffle=True),
+        "validate": DataLoader(
+            validate_dataset, batch_size=len(validate_dataset), shuffle=True
+        ),
         "test": DataLoader(
             test_dataset,
-            batch_size=fhe_batch_size
-            if model_work_mode == utils.ModelWorkMode.fhe_inference
-            else batch_size,
+            batch_size=len(test_dataset),
             shuffle=True,
         ),
     }

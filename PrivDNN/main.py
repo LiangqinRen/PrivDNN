@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     logger.info("check CUDA, get argparser and logger")
 
-    dataloaders = dataloaders_selection[args.dataset](args.model_work_mode)
+    dataloaders = dataloaders_selection[args.dataset]()
     model_path = utils.get_model_path(args, dataloaders)
     if args.model_work_mode == utils.ModelWorkMode.train:
         if args.train_dataset_percent == 100:
@@ -58,15 +58,23 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
 
         # worker.select_neurons_v1(args, logger, trained_model, dataloaders)
-        worker.select_neurons_v2(args, logger, trained_model, dataloaders)
+        # worker.select_neurons_v2(args, logger, trained_model, dataloaders)
+        """worker.select_neurons_v2_amend(
+            args,
+            logger,
+            trained_model,
+            dataloaders,
+            f"selected_neurons_{args.percent_factor - 5}%.json",
+            f"selected_neurons_{args.percent_factor}%.json",
+        )"""
 
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 3)
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 4)
 
-        # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
-        # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
+        worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
+        worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
 
         # worker.select_full_combination(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.recover:

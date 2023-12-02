@@ -908,8 +908,6 @@ class SplitCIFAR10Net(SplitNet):
             or self.work_mode == WorkMode.split
             or self.work_mode == WorkMode.recover
         ):
-            # print(self.conv2_layers[0].layer.bias)
-            # quit()
             conv1_output = self._conv(self.conv1_layers, input)
             conv1_output = self._activate(conv1_output, [torch.square, F.relu])
 

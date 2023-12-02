@@ -121,7 +121,7 @@ def closing_test(args, logger, model, dataloaders, selected_neurons, file_name=N
     point = get_neuron_point(args, separate_accuracy, remove_accuracy)
 
     logger.info(
-        f"{dataloaders['name']} selecte neurons {selected_neurons}, we get the accuracy [{separate_accuracy}% - {remove_accuracy}% = {separate_accuracy - remove_accuracy:.2f}%, point {point:.2f}]"
+        f"{dataloaders['name']} select neurons {selected_neurons}, we get the accuracy [{separate_accuracy}% - {remove_accuracy}% = {separate_accuracy - remove_accuracy:.2f}%, point {point:.2f}]"
     )
 
     _, _, _, original_label_correct_count = get_model_accuracy(
@@ -603,7 +603,7 @@ def select_neurons_v2(args, logger, model, dataloaders):
         selected_neurons[i + 1] = selected_layer_neurons
 
         logger.info(
-            f"[conv{layers_list[i][0].layer_index}]Seperated neurons list: {selected_neurons}"
+            f"[conv{layers_list[i][0].layer_index}]Separated neurons list: {selected_neurons}"
         )
 
         if len(selected_neurons[i + 1]) == layers_list[i][0].layer.out_channels:
@@ -675,7 +675,7 @@ def select_neurons_v2_amend(args, logger, model, dataloaders, input_file, output
         selected_neurons[i + 1] = selected_layer_neurons
 
         logger.info(
-            f"[conv{layers_list[i][0].layer_index}]Seperated neurons list: {selected_neurons}"
+            f"[conv{layers_list[i][0].layer_index}]Separated neurons list: {selected_neurons}"
         )
 
         if len(selected_neurons[i + 1]) == layers_list[i][0].layer.out_channels:
@@ -776,7 +776,7 @@ def pruning_select_hrank(model, index, select_limit, dataloaders):
 def pruning_select_greedy_forward(
     model, index, select_limit, dataloaders, selected_neurons
 ):
-    # the function has `CUDA out of memory` error when select complex datasets
+    # the function consumes more GPU memory
 
     # reset previous layers parameters
     reset_model = copy.deepcopy(model)
@@ -883,7 +883,7 @@ def select_neurons_v3(args, logger, model, dataloaders, prune_index=1):
                 copy.deepcopy(selected_neurons),
             )
         else:
-            logger.fatal(f"unsuppoted prune algorithm index {prune_index}")
+            logger.fatal(f"unsupported prune algorithm index {prune_index}")
             exit()
 
         if args.add_factor is not None:
@@ -967,7 +967,7 @@ def select_neurons_v4(args, logger, model, dataloaders, prune_index=1):
         selected_neurons[i + 1] = selected_layer_neurons
 
         logger.info(
-            f"[conv{layers_list[i][0].layer_index}]Seperated neurons list: {selected_neurons}"
+            f"[conv{layers_list[i][0].layer_index}]Separated neurons list: {selected_neurons}"
         )
 
         if len(selected_neurons[i + 1]) == layers_list[i][0].layer.out_channels:
@@ -1071,13 +1071,13 @@ def recover_model(args, logger, model, dataloaders, model_path):
     )
 
     selected_neurons = load_selected_neurons(
-        dataloaders,
+        dataloaders_recover,
         f"selected_neurons_{int(args.percent_factor)}%.json"
         if args.percent_factor
         else f"recover_selected_neurons.json",
     )
     model.selected_neurons = selected_neurons
-
+    logger.info(f"selected_neurons: {selected_neurons}")
     logger.info("original accuracy")
     model.work_mode = models.WorkMode.split
     test_model(logger, model, dataloaders)

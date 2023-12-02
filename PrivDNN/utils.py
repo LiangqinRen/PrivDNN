@@ -151,13 +151,13 @@ def get_argparser():
         "--recover_dataset_percent",
         type=int,
         default=None,
-        help="percent of the trainning dataset to recover the model",
+        help="percent of the training dataset to recover the model",
     )
     parser.add_argument(
         "--recover_dataset_count",
         type=int,
         default=None,
-        help="count of the trainning dataset to recover the model",
+        help="count of the training dataset to recover the model",
     )
 
     args = parser.parse_args()
