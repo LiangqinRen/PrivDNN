@@ -25,7 +25,8 @@ if __name__ == "__main__":
             \taccuracy_base: {args.accuracy_base}\n\
             \tgreedy_step: {args.greedy_step}\n\
             \trecover_dataset_percent: {args.recover_dataset_percent}\n\
-            \trecover_dataset_count: {args.recover_dataset_count}"
+            \trecover_dataset_count: {args.recover_dataset_count}\n\
+            \trecover_freeze: {args.recover_freeze}"
     )
 
     utils.check_cuda_availability()
@@ -74,13 +75,17 @@ if __name__ == "__main__":
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 4)
 
         worker.select_neurons_v4(args, logger, trained_model, dataloaders, 1)
-        worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
+        # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
 
         # worker.select_full_combination(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.recover:
         trained_model = worker.load_trained_model(model_path)
-        worker.recover_model(args, logger, trained_model, dataloaders, model_path)
+        # worker.recover_model(args, logger, trained_model, dataloaders, model_path)
         # worker.train_from_scratch(args, logger, dataloaders)
+        #  worker.recover_input(args, logger, trained_model, dataloaders, "attack.png")
+        worker.recover_input_autoencoder(
+            args, logger, trained_model, dataloaders, "attack.png"
+        )
     elif args.model_work_mode == utils.ModelWorkMode.fhe_inference:
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
@@ -93,12 +98,13 @@ if __name__ == "__main__":
         # logger.info("SEAL remove inference:")
         # worker.test_model(logger, trained_model, dataloaders)
 
-        # if args.dataset == "MNIST":
-        #    model_path = model_path.replace(".pth", "_cpp.pth")
-        # trained_model = worker.load_trained_model(model_path)
-        # trained_model.cpp_work_mode = models.CppWorkMode.full
-        # logger.info("SEAL full inference:")
-        # worker.test_model(logger, trained_model, dataloaders)
+        """if args.dataset == "MNIST":
+            model_path = model_path.replace(".pth", "_cpp.pth")
+        trained_model = worker.load_trained_model(model_path)
+        trained_model.work_mode = models.WorkMode.cipher
+        trained_model.cpp_work_mode = models.CppWorkMode.full
+        logger.info("SEAL full inference:")
+        worker.test_model(logger, trained_model, dataloaders)"""
     elif args.model_work_mode == utils.ModelWorkMode.something:
         trained_model = worker.load_trained_model(model_path)
     else:

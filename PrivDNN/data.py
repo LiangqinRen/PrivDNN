@@ -123,7 +123,7 @@ def get_EMNIST_dataloader(use_train_set_percent=100):
         "test": DataLoader(
             test_dataset,
             batch_size=len(test_dataset),
-            shuffle=True,
+            shuffle=False,
         ),
     }
 
@@ -184,7 +184,7 @@ def get_GTSRB_dataloader(use_train_set_percent=100):
         "test": DataLoader(
             test_dataset,
             batch_size=len(test_dataset),
-            shuffle=True,
+            shuffle=False,
         ),
     }
 
@@ -243,7 +243,7 @@ def get_CIFAR10_dataloader(use_train_set_percent=100):
         "test": DataLoader(
             test_dataset,
             batch_size=len(test_dataset),
-            shuffle=True,
+            shuffle=False,
         ),
     }
 

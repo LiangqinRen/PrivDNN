@@ -8,12 +8,15 @@ import json
 import math
 import threading
 import inspect
+import random
 
 import torch.nn as nn
 import torch.nn.utils.prune as prune
 import torch.optim as optim
 import itertools as it
 import numpy as np
+import matplotlib.pyplot as plt
+from torchvision.utils import save_image
 
 from torch.ao.pruning._experimental.pruner.FPGM_pruner import FPGMPruner
 from tqdm import tqdm
@@ -894,7 +897,7 @@ def select_neurons_v3(args, logger, model, dataloaders, prune_index=1):
     closing_test(args, logger, copy.deepcopy(model), dataloaders, selected_neurons)
 
 
-def select_neurons_v4(args, logger, model, dataloaders, prune_index=1):
+def select_neurons_v4(args, logger, model, dataloaders, prune_index):
     timer = utils.Timer(
         f"{inspect.currentframe().f_code.co_name}_v{prune_index}", logger
     )
@@ -917,9 +920,16 @@ def select_neurons_v4(args, logger, model, dataloaders, prune_index=1):
     for i in range(first_layer_index):
         selected_neurons[i + 1] = []
 
-    first_layer_pool = pruning_select_norm(
-        copy.deepcopy(model), 0, first_layer_neurons_count * 2
-    )
+    first_layer_pool = None
+    if prune_index == 1:
+        first_layer_pool = pruning_select_norm(
+            copy.deepcopy(model), 0, first_layer_neurons_count * 2
+        )
+    elif prune_index == 2:
+        first_layer_pool = pruning_select_fpgm(
+            copy.deepcopy(model), 0, first_layer_neurons_count * 2
+        )
+
     selected_first_layer_neurons = get_first_layer_neurons_to_separate(
         args,
         logger,
@@ -1088,103 +1098,32 @@ def recover_model(args, logger, model, dataloaders, model_path):
         if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
             others_parameters.extend(list(layers.parameters()))
         else:
-            layer_index = layers[0].layer_index  # layer_index starts from 1
-            others_parameters.extend(list(layers[0].parameters()))
-            for i in range(1, len(layers)):
-                if (
-                    layer_index in selected_neurons
-                    and i - 1 in selected_neurons[layer_index]
-                ):
-                    layers[i].layer.reset_parameters()
-                    recover_parameters.extend(list(layers[i].parameters()))
-                else:
-                    others_parameters.extend(list(layers[i].parameters()))
-
-    train_model(
-        args,
-        logger,
-        model,
-        dataloaders_recover,
-        [recover_parameters, []],
-        recover_model_path,
-    )
-
-    logger.info("after recovering the model(ReLU)")
-    test_model(logger, model, dataloaders)
-
-
-def recover_model_mix(args, logger, model, dataloaders, model_path):
-    dataloaders_recover = copy.deepcopy(dataloaders)
-    dataloaders_recover["epoch"] = 256
-    if args.recover_dataset_percent:
-        data.use_partial_dataloaders(
-            dataloaders_recover, percent=args.recover_dataset_percent, mode="test"
-        )
-    elif args.recover_dataset_count:
-        data.use_partial_dataloaders(
-            dataloaders_recover, count=args.recover_dataset_count, mode="test"
-        )
-
-    recover_model_path = (
-        model_path[:-7] + str(args.recover_dataset_percent) + "_recover_mix.pth"
-    )
-
-    selected_neurons = load_selected_neurons(
-        dataloaders,
-        f"selected_neurons_{int(args.percent_factor)}%.json"
-        if args.percent_factor
-        else f"recover_selected_neurons.json",
-    )
-
-    for layers in model.get_layers_list():
-        if layers[0].layer_index not in selected_neurons:
-            selected_neurons[layers[0].layer_index] = list(
-                range(layers[0].layer.out_channels)
-            )
-    model.selected_neurons = selected_neurons
-
-    logger.info("original accuracy")
-    model.work_mode = models.WorkMode.split
-    test_model(logger, model, dataloaders)
-
-    recover_parameters = []
-    others_parameters = []
-    for layers in model.get_layers_list(True):
-        if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
-            others_parameters.extend(list(layers.parameters()))
-        else:
-            layer_index = layers[0].layer_index  # layer_index starts from 1
-            if layer_index in selected_neurons:
+            if isinstance(layers[0], nn.Conv2d):
+                for i, layer in enumerate(layers):
+                    if i in selected_neurons[2]:
+                        layers[i].reset_parameters()
+                        recover_parameters.extend(list(layer.parameters()))
+                    else:
+                        others_parameters.extend(list(layer.parameters()))
+            else:
+                layer_index = layers[0].layer_index  # layer_index starts from 1
+                others_parameters.extend(list(layers[0].parameters()))
                 for i in range(1, len(layers)):
-                    if i - 1 in selected_neurons[layer_index]:
+                    if (
+                        layer_index in selected_neurons
+                        and i - 1 in selected_neurons[layer_index]
+                    ):
                         layers[i].layer.reset_parameters()
                         recover_parameters.extend(list(layers[i].parameters()))
                     else:
                         others_parameters.extend(list(layers[i].parameters()))
-            else:
-                layers[0].layer.reset_parameters()
-                recover_parameters.extend(list(layers[0].parameters()))
-
-            """if layer_index >= 3:
-                recover_parameters.extend(list(layers[0].parameters()))
-            else:
-                others_parameters.extend(list(layers[0].parameters()))
-            for i in range(1, len(layers)):
-                if (
-                    layer_index in selected_neurons
-                    and i - 1 in selected_neurons[layer_index]
-                ):
-                    layers[i].layer.reset_parameters()
-                    recover_parameters.extend(list(layers[i].parameters()))
-                else:
-                    others_parameters.extend(list(layers[i].parameters()))"""
 
     train_model(
         args,
         logger,
         model,
         dataloaders_recover,
-        [recover_parameters, others_parameters],
+        [recover_parameters, [] if args.recover_freeze else others_parameters],
         recover_model_path,
     )
 
@@ -1192,8 +1131,206 @@ def recover_model_mix(args, logger, model, dataloaders, model_path):
     test_model(logger, model, dataloaders)
 
 
-def test_separated_model(args, logger, model, dataloaders):
-    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+def obfuscate_intermidiate_results(
+    args, logger, dataloaders, output: torch.tensor, randomize: bool = True
+) -> torch.tensor:
+    selected_neurons = load_selected_neurons(
+        dataloaders, f"selected_neurons_{args.percent_factor}%.json"
+    )
 
-    selected_neurons = load_selected_neurons(dataloaders, args.selected_neurons_file)
-    closing_test(args, logger, model, dataloaders, selected_neurons)
+    for i in range(64):
+        if i in selected_neurons[2] and randomize:
+            output[:, i, :, :] *= random.random() * 100
+        else:
+            output[:, i, :, :] = 0
+
+    return output
+
+
+def save_results(dataloaders, results: list, pictures_name: str, count: int) -> None:
+    path = f"../saved_models/{dataloaders['name']}/{pictures_name}"
+    output_tensor = output_tensor = (
+        torch.cat((results[0][:count], results[1][:count]))
+        if len(results) == 2
+        else torch.cat((results[0][:count], results[1][:count], results[2][:count]))
+    )
+
+    save_image(output_tensor / 2 + 0.5, path)
+
+
+def _tensor_size(t):
+    return t.size()[1] * t.size()[2] * t.size()[3]
+
+
+def total_variation(input):
+    batch_size, channel, height, width = (
+        input.shape[0],
+        input.shape[1],
+        input.shape[2],
+        input.shape[3],
+    )
+
+    count_height = _tensor_size(input[:, :, 1:, :])
+    count_width = _tensor_size(input[:, :, :, 1:])
+    h_tv = torch.pow(input[:, :, 1:, :] - input[:, :, : height - 1, :], 2).sum()
+    w_tv = torch.pow(input[:, :, :, 1:] - input[:, :, :, : width - 1], 2).sum()
+    return (h_tv / count_height + w_tv / count_width) / batch_size
+
+
+def l2loss(x):
+    return (x**2).mean()
+
+
+def recover_input(args, logger, model, dataloaders, pictures_name: str) -> None:
+    attack_model = copy.deepcopy(model)
+    attack_model.work_mode = models.WorkMode.attack_out
+
+    input_shape = [len(dataloaders["test"].dataset)] + list(
+        dataloaders["test"].dataset[0][0].shape
+    )
+    input = torch.empty(input_shape).fill_(0.5).requires_grad_(True)
+    input_optimizer = torch.optim.Adam([input], lr=0.001, amsgrad=True)
+    mse_loss = torch.nn.MSELoss()
+
+    obfuscated_result = None
+    for imgs, _ in dataloaders["test"]:
+        real_result = attack_model(imgs.cuda())
+        obfuscated_result = obfuscate_intermidiate_results(
+            args, logger, dataloaders, real_result
+        )
+
+    # rescale
+    selected_neurons = load_selected_neurons(
+        dataloaders, f"selected_neurons_{args.percent_factor}%.json"
+    )
+    for i in range(real_result.shape[1]):
+        if i in selected_neurons[2]:
+            obfuscated_result[:, i, :, :] /= sum(obfuscated_result[:, i, :, :]) / sum(
+                real_result[:, i, :, :]
+            )
+
+    results = []
+    for i in range(1000):
+        for imgs, _ in dataloaders["test"]:
+            input_optimizer.zero_grad()
+
+            guess_result = attack_model(input.cuda())
+            loss = (
+                mse_loss(guess_result, obfuscated_result)
+                + 0.1 * total_variation(input)
+                + 1 * l2loss(input)
+            )
+            loss.backward(retain_graph=True)
+
+            input_optimizer.step()
+
+            results = [imgs.detach(), input.detach()]
+
+            if i % 100 == 0:
+                save_results(
+                    dataloaders,
+                    results,
+                    f"{args.percent_factor}_{i}_{pictures_name}",
+                    8,
+                )
+                output_tensor = torch.cat((results[0], results[1]))
+                torch.save(output_tensor, f"{args.percent_factor}.pt")
+
+
+class Square(nn.Module):
+    def forward(self, x):
+        return torch.square(x)
+
+
+class AutoEncoderCIFAR10(nn.Module):
+    def __init__(self, args, dataloaders):
+        super(AutoEncoderCIFAR10, self).__init__()
+
+        self.encoder = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1),
+            Square(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(
+                in_channels=64, out_channels=64, kernel_size=3, padding=1
+            ),
+            Square(),
+            nn.ConvTranspose2d(
+                in_channels=64, out_channels=3, kernel_size=3, padding=1
+            ),
+        )
+
+        self.selected_neurons = load_selected_neurons(
+            dataloaders, f"selected_neurons_{args.percent_factor}%.json"
+        )
+
+    def forward(self, input):
+        encoder_output = self.encoder(input)
+
+        for i in range(encoder_output.shape[1]):
+            if i not in self.selected_neurons[2]:
+                encoder_output[:, i, :, :] = 0
+
+        decoder_output = self.decoder(encoder_output)
+        return decoder_output
+
+
+def recover_input_autoencoder(
+    args, logger, model, dataloaders, pictures_name: str
+) -> None:
+    autoencoder = AutoEncoderCIFAR10(args, dataloaders).cuda()
+
+    criterion = torch.nn.MSELoss()
+    optimizer = optim.Adam(autoencoder.parameters())
+
+    for i in range(100):
+        for imgs, _ in dataloaders["test"]:
+            imgs = imgs.cuda()
+
+            optimizer.zero_grad()
+            output = autoencoder(imgs)
+            loss = criterion(output, imgs)
+            loss.backward()
+            optimizer.step()
+
+            results = [imgs.detach(), output.detach()]
+
+            if i % 10 == 0:
+                save_results(
+                    dataloaders,
+                    results,
+                    f"autoencoder_{args.percent_factor}_{i}_{pictures_name}",
+                    8,
+                )
+
+    attack_model = copy.deepcopy(model)
+    attack_model.work_mode = models.WorkMode.attack_out
+    real_result = None
+    obfuscated_result = None
+    for imgs, _ in dataloaders["test"]:
+        real_result = attack_model(imgs.cuda())
+        obfuscated_result = obfuscate_intermidiate_results(
+            args, logger, dataloaders, real_result
+        )
+
+    # rescale
+    selected_neurons = load_selected_neurons(
+        dataloaders, f"selected_neurons_{args.percent_factor}%.json"
+    )
+    for i in range(real_result.shape[1]):
+        if i in selected_neurons[2]:
+            obfuscated_result[:, i, :, :] /= sum(obfuscated_result[:, i, :, :]) / sum(
+                real_result[:, i, :, :]
+            )
+
+    recover_result = autoencoder.decoder(obfuscated_result)
+    results.append(recover_result)
+
+    save_results(
+        dataloaders,
+        results,
+        f"autoencoder_{args.percent_factor}_final_{pictures_name}",
+        8,
+    )

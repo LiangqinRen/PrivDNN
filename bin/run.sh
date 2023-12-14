@@ -25,6 +25,11 @@ then
     python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 50 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 elif [[ $1 == 'recover' ]]
 then
+    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 50
+    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 75
+    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 100
+    exit
+
     # recover the model with different amount of pictures
     for count in {100,250,500,1000}
     do

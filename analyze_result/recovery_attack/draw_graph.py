@@ -35,30 +35,30 @@ def draw_recovery_attack_graph(
         label="$A_r$",
     )
 
-    figure1.plot(
+    """figure1.plot(
         percents,
         recover_accuracies_freeze,
         linestyle="solid",
         color="red",
         label="$A_{rec}$ ✓",
     )
-    figure1.legend(loc="center left")
+    figure1.legend(loc="center left")"""
 
     figure1.plot(
         percents,
         recover_accuracies_unfreeze,
         linestyle="solid",
-        color="brown",
-        label="$A_{rec}$ ✕",
+        color="purple",
+        label="$A_{rec}$",
     )
 
     # train from scratch
-    figure1.axhline(40.20, linestyle="solid", color="blue", label="$A_o$", alpha=0.3)
-    figure1.scatter(80, 40.20, color="red", zorder=2)
+    figure1.axhline(49.94, linestyle="solid", color="blue", label="$A_o$", alpha=0.3)
+    figure1.scatter(90, 49.94, color="red", zorder=2)
     figure1.annotate(
-        f"{40.20:.2f}",
-        xy=(80, 40.20),
-        xytext=(80, 40.20 + 2),
+        f"{49.94:.2f}",
+        xy=(90, 49.94),
+        xytext=(90, 49.94 + 2),
         color="red",
     )
 
@@ -66,52 +66,51 @@ def draw_recovery_attack_graph(
 
     figure2 = figure1.twinx()
     figure2.set_ylabel("✖️ 1000 seconds")
-    # figure2.set_ylim(ymin=0, ymax=100)
     figure2.set_yticks(np.linspace(10, 100, 10))
     figure2.plot(
         percents,
         running_time,
         linestyle="solid",
-        color="purple",
+        color="coral",
         label="$T$",
     )
 
     figure2.legend(loc="center right")
 
-    figure1.scatter(percents[4], separate_accuracies[4], color="red", zorder=2)
+    figure1.scatter(percents[6], separate_accuracies[6], color="red", zorder=2)
     figure1.annotate(
-        f"{separate_accuracies[4]:.2f}",
-        xy=(percents[4], separate_accuracies[5]),
-        xytext=(percents[4] + 1, separate_accuracies[5] + 1),
+        f"{separate_accuracies[6]:.2f}",
+        xy=(percents[6], separate_accuracies[6]),
+        xytext=(percents[6] + 1, separate_accuracies[6] + 1),
         color="red",
     )
-    figure1.scatter(percents[4], remove_accuracies[4], color="red", zorder=2)
+    figure1.scatter(percents[6], remove_accuracies[6], color="red", zorder=2)
     figure1.annotate(
-        f"{remove_accuracies[4]:.2f}",
-        xy=(percents[4], remove_accuracies[4]),
-        xytext=(percents[4] + 2, remove_accuracies[4] + 2),
+        f"{remove_accuracies[6]:.2f}",
+        xy=(percents[6], remove_accuracies[6]),
+        xytext=(percents[6] - 3, remove_accuracies[6] - 6),
         color="red",
     )
-    figure1.scatter(percents[3], recover_accuracies_freeze[3], color="red", zorder=2)
+    """figure1.scatter(percents[5], recover_accuracies_freeze[5], color="red", zorder=2)
     figure1.annotate(
-        f"{recover_accuracies_freeze[3]:.2f}",
-        xy=(percents[3], recover_accuracies_freeze[3]),
-        xytext=(percents[3] + 1, recover_accuracies_freeze[3] + 1),
+        f"{recover_accuracies_freeze[5]:.2f}",
+        xy=(percents[5], recover_accuracies_freeze[5]),
+        xytext=(percents[5] - 5, recover_accuracies_freeze[5]),
         color="red",
-    )
-    figure1.scatter(percents[4], recover_accuracies_unfreeze[4], color="red", zorder=2)
+    )"""
+    figure1.scatter(percents[6], recover_accuracies_unfreeze[6], color="red", zorder=2)
     figure1.annotate(
-        f"{recover_accuracies_unfreeze[4]:.2f}",
-        xy=(percents[4], recover_accuracies_unfreeze[4]),
-        xytext=(percents[4] + 1, recover_accuracies_unfreeze[4] + 2),
+        f"{recover_accuracies_unfreeze[6]:.2f}",
+        xy=(percents[6], recover_accuracies_unfreeze[6]),
+        xytext=(percents[6] + 1, recover_accuracies_unfreeze[6] + 1),
         color="red",
     )
 
-    figure2.scatter(percents[4], running_time[4], color="red", zorder=2)
+    figure2.scatter(percents[6], running_time[6], color="red", zorder=2)
     figure2.annotate(
-        f"{running_time[4]:.2f}",
-        xy=(percents[4], running_time[4]),
-        xytext=(percents[4] - 1, running_time[4] + 2),
+        f"{running_time[6]:.2f}",
+        xy=(percents[6], running_time[6]),
+        xytext=(percents[6] - 3, running_time[6] + 1),
         color="red",
     )
 
@@ -125,56 +124,56 @@ def draw_recovery_attack_graph(
 if __name__ == "__main__":
     percents = [*range(50, 105, 5)]
     separate_accuracies = [
-        89.90,  # 50
-        89.90,  # 55
-        89.62,  # 60
-        89.66,  # 65
-        89.66,  # 70
-        89.72,  # 75
-        89.50,  # 80
-        89.44,  # 85
-        89.44,  # 90
-        89.38,  # 95
-        89.56,  # 100
+        90.78,  # 50
+        90.76,  # 55
+        90.64,  # 60
+        90.54,  # 65
+        90.68,  # 70
+        90.52,  # 75
+        90.56,  # 80
+        90.46,  # 85
+        90.26,  # 90
+        90.48,  # 95
+        90.22,  # 100
     ]
     remove_accuracies = [
-        43.78,  # 50
-        28.88,  # 55
-        21.80,  # 60
-        17.02,  # 65
-        11.00,  # 70
-        10.80,  # 75
-        10.12,  # 80
-        10.00,  # 85
-        10.12,  # 90
-        10.02,  # 95
-        10.24,  # 100
+        55.90,  # 50
+        52.50,  # 55
+        43.68,  # 60
+        44.06,  # 65
+        43.74,  # 70
+        24.90,  # 75
+        18.48,  # 80
+        13.38,  # 85
+        9.82,  # 90
+        9.78,  # 95
+        9.78,  # 100
     ]
     recover_accuracies_freeze = [
-        84.44,  # 50
-        82.14,  # 55
-        69.82,  # 60
-        19.48,  # 65
-        18.26,  # 70
-        19.46,  # 75
-        19.20,  # 80
-        20.92,  # 85
-        19.42,  # 90
-        20.14,  # 95
-        16.02,  # 100
+        82.74,  # 50
+        82.34,  # 55
+        79.90,  # 60
+        78.92,  # 65
+        77.70,  # 70
+        21.88,  # 75
+        24.62,  # 80
+        24.90,  # 85
+        23.30,  # 90
+        24.16,  # 95
+        20.82,  # 100
     ]
     recover_accuracies_unfreeze = [
-        84.66,  # 50
-        83.04,  # 55
-        77.94,  # 60
-        79.32,  # 65
-        26.44,  # 70
-        27.02,  # 75
-        26.42,  # 80
-        25.82,  # 85
-        33.96,  # 90
-        29.76,  # 95
-        25.92,  # 100
+        83.60,  # 50
+        83.24,  # 55
+        80.90,  # 60
+        79.66,  # 65
+        78.66,  # 70
+        60.26,  # 75
+        43.14,  # 80
+        39.42,  # 85
+        34.12,  # 90
+        35.02,  # 95
+        30.18,  # 100
     ]
     # running_time = [31097, 33723, 36316, 39310, 42210, 45378, 48940, 0, 0, 0, 0]
     running_time = [

@@ -5,12 +5,16 @@ import ctypes
 import torch.nn as nn
 import torch.nn.functional as F
 
+from collections import OrderedDict
+
 
 class WorkMode(enum.Enum):
     normal = 1
     split = 2
     recover = 3
     cipher = 4
+    attack_in = 5
+    attack_out = 5
 
 
 class CppWorkMode(enum.Enum):
@@ -173,7 +177,11 @@ class SplitNet(nn.Module):
         return trained_data_pointer
 
     def _conv(self, layers, input):
-        if self.work_mode == WorkMode.normal:
+        if (
+            self.work_mode == WorkMode.normal
+            or WorkMode.attack_in
+            or WorkMode.attack_out
+        ):
             return layers[0](input)
         elif self.work_mode == WorkMode.split or self.work_mode == WorkMode.recover:
             outputs = []
@@ -318,7 +326,8 @@ class SplitMNISTNet(SplitNet):
                 ).cuda()
 
                 avgpool2_output = torch.square(self.avg_pool_layer(conv2_output))
-                fc1_input = avgpool2_output.view(-1, 256)
+
+                fc1_input = avgpool2_output.reshape(avgpool2_output.shape[0], -1)
                 fc1_output = torch.square(self.fc1_layer(fc1_input))
                 fc2_output = torch.square(self.fc2_layer(fc1_output))
                 output = self.fc3_layer(fc2_output)
@@ -740,6 +749,12 @@ class SplitCIFAR10Net(SplitNet):
             )
             for _ in range(64)
         ]
+        self.conv2_obscure = [
+            nn.Conv2d(
+                in_channels=1, out_channels=1, kernel_size=3, padding=1, bias=False
+            )
+            for _ in range(64)
+        ]
         self.batch_normal2_layer = nn.BatchNorm2d(64)
 
         self.conv3_layers = [
@@ -893,25 +908,89 @@ class SplitCIFAR10Net(SplitNet):
         self.fc2_layer = nn.Linear(in_features=512, out_features=512)
         self.fc3_layer = nn.Linear(in_features=512, out_features=10)
 
-    def forward(self, input):
-        output = None
-        torch.set_printoptions(
-            precision=8,
-            threshold=None,
-            edgeitems=None,
-            linewidth=None,
-            profile="full",
+        self.plain_layers = nn.Sequential(
+            OrderedDict(
+                [
+                    ("conv3", self._make_plain_layers(64, 128, False)),
+                    ("conv4", self._make_plain_layers(128, 128, True)),
+                    ("conv5", self._make_plain_layers(128, 256, False)),
+                    ("conv6", self._make_plain_layers(256, 256, False)),
+                    ("conv7", self._make_plain_layers(256, 256, True)),
+                    ("conv8", self._make_plain_layers(256, 512, False)),
+                    ("conv9", self._make_plain_layers(512, 512, False)),
+                    ("conv10", self._make_plain_layers(512, 512, True)),
+                    ("conv11", self._make_plain_layers(512, 512, False)),
+                    ("conv12", self._make_plain_layers(512, 512, False)),
+                    ("conv13", self._make_plain_layers(512, 512, True)),
+                ]
+            )
         )
 
+        self.fc_layers = nn.Sequential(
+            OrderedDict(
+                [
+                    ("fc1", self._make_fc_layers(512, 512, False)),
+                    ("fc2", self._make_fc_layers(512, 512, False)),
+                    ("fc3", self._make_fc_layers(512, 10, True)),
+                ]
+            )
+        )
+
+    def _make_cipher_layers(self, in_channel: int, out_channel: int) -> nn.Sequential:
+        layers = []
+
+        return nn.Sequential(*layers)
+
+    def _make_plain_layers(
+        self, in_channel: int, out_channel: int, has_maxpool: bool
+    ) -> nn.Sequential:
+        layers = []
+        layers.append(nn.Conv2d(in_channel, out_channel, 3, padding=1))
+        layers.append(nn.BatchNorm2d(out_channel))
+        layers.append(nn.ReLU())
+        if has_maxpool:
+            layers.append(nn.MaxPool2d(2))
+
+        return nn.Sequential(*layers)
+
+    def _make_fc_layers(
+        self, in_channel: int, out_channel: int, output: bool
+    ) -> nn.Sequential:
+        layers = []
+        layers.append(nn.Linear(in_channel, out_channel))
+        if not output:
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout())
+
+        return nn.Sequential(*layers)
+
+    def forward(self, input):
+        output = None
         if (
             self.work_mode == WorkMode.normal
             or self.work_mode == WorkMode.split
             or self.work_mode == WorkMode.recover
+            or self.work_mode == WorkMode.attack_in
+            or self.work_mode == WorkMode.attack_out
         ):
             conv1_output = self._conv(self.conv1_layers, input)
-            conv1_output = self._activate(conv1_output, [torch.square, F.relu])
+            conv1_output = torch.square(conv1_output)
 
             conv2_output = self._conv(self.conv2_layers, conv1_output)
+            # obscure
+            conv2_output = list(
+                torch.split(conv2_output, split_size_or_sections=1, dim=1)
+            )
+            for i in range(len(conv2_output)):
+                conv2_output[i] = self.conv2_obscure[i](conv2_output[i])
+            conv2_output = torch.cat(conv2_output, dim=1)
+
+            if self.work_mode == WorkMode.attack_out:
+                return conv2_output
+
+            if self.work_mode == WorkMode.attack_in:
+                conv2_output = input
+
             bn2_output = self.batch_normal2_layer(conv2_output)
             bn2_output = F.relu(bn2_output)
             max_pool2_output = self.max_pool_layer(bn2_output)
@@ -1033,6 +1112,15 @@ class SplitCIFAR10Net(SplitNet):
                 conv2_output = torch.reshape(
                     torch.FloatTensor(conv2_output), [input.shape[0], 64, 32, 32]
                 ).cuda()
+
+                # obscure
+                conv2_output = list(
+                    torch.split(conv2_output, split_size_or_sections=1, dim=1)
+                )
+                for i in range(len(conv2_output)):
+                    conv2_output[i] = self.conv2_obscure[i](conv2_output[i])
+                conv2_output = torch.cat(conv2_output, dim=1)
+
                 bn2_output = self.batch_normal2_layer(conv2_output)
                 bn2_output = F.relu(bn2_output)
                 max_pool2_output = self.max_pool_layer(bn2_output)
@@ -1114,6 +1202,7 @@ class SplitCIFAR10Net(SplitNet):
         if include_fc_layers:
             layers_list.extend(
                 [
+                    self.conv2_obscure,
                     # self.batch_normal1_layer,
                     self.batch_normal2_layer,
                     self.batch_normal3_layer,

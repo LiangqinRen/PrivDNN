@@ -159,6 +159,11 @@ def get_argparser():
         default=None,
         help="count of the training dataset to recover the model",
     )
+    parser.add_argument(
+        "--recover_freeze",
+        action="store_true",
+        help="freeze non selected neurons when recover the model",
+    )
 
     args = parser.parse_args()
     args.model_work_mode = ModelWorkMode(args.model_work_mode)
