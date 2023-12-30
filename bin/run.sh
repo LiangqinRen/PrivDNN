@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dataset="CIFAR10"
+dataset="MNIST"
 
 declare -A accuracy
 accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76')
