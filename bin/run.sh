@@ -27,7 +27,7 @@ elif [[ $1 == 'recover' ]]
 then
     python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 50
     # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 75
-    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 100
+    #python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 100
     exit
 
     # recover the model with different amount of pictures

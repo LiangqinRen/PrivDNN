@@ -110,6 +110,13 @@ def test_model(logger, model, dataloaders):
     logger.info(f"[{correct_count}/{samples_count}], Accuracy: {accuracy:.2f}%")
 
 
+def test_separated_model(args, logger, model, dataloaders):
+    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
+
+    selected_neurons = load_selected_neurons(dataloaders, args.selected_neurons_file)
+    closing_test(args, logger, model, dataloaders, selected_neurons)
+
+
 def closing_test(args, logger, model, dataloaders, selected_neurons, file_name=None):
     (
         separate_accuracy,
@@ -1334,3 +1341,69 @@ def recover_input_autoencoder(
         f"autoencoder_{args.percent_factor}_final_{pictures_name}",
         8,
     )
+
+
+def defense_weight_stealing(args, logger, model, dataloaders) -> None:
+    obfuscated_retrain_model = copy.deepcopy(model)
+
+    selected_neurons = load_selected_neurons(
+        dataloaders, f"selected_neurons_{args.percent_factor}%.json"
+    )
+    obfuscated_layer = []
+    layers_list = obfuscated_retrain_model.get_layers_list(include_fc_layers=True)
+    for layer in layers_list:
+        if isinstance(layer, list) and isinstance(layer[0], nn.Conv2d):
+            obfuscated_layer = layer
+            break
+
+    retrain_parameters = []
+    for i in range(len(obfuscated_layer)):
+        if i in selected_neurons[2]:
+            logger.info(f"original {i}th neuron: {obfuscated_layer[i].weight}")
+            obfuscated_layer[i].reset_parameters()
+            retrain_parameters.extend(list(obfuscated_layer[i].parameters()))
+
+    test_model(logger, obfuscated_retrain_model, dataloaders)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(retrain_parameters, lr=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=dataloaders["epoch"]
+    )
+
+    best_loss = 1
+    best_model = None
+
+    for i in range(64):
+        loss_ep = 0
+        for imgs, labels in dataloaders["train"]:
+            imgs = imgs.cuda()
+            labels = labels.cuda()
+
+            optimizer.zero_grad()
+            scores = obfuscated_retrain_model(imgs)
+            loss = criterion(scores, labels)
+            loss.backward()
+            optimizer.step()
+
+            loss_ep += loss.item()
+
+        average_loss = loss_ep / len(dataloaders["train"].dataset)
+        if average_loss < best_loss:
+            best_loss = average_loss
+            best_model = copy.deepcopy(obfuscated_retrain_model)
+
+        scheduler.step()
+        with torch.no_grad():
+            _, _, accuracy, _ = get_model_accuracy(
+                obfuscated_retrain_model, dataloaders["validate"]
+            )
+            logger.info(
+                f"[Epoch {i:3}]Loss: {average_loss:.8f}, Accuracy: {accuracy:5.3f}%"
+            )
+
+    obfuscated_retrain_model = best_model
+    for i in range(len(obfuscated_layer)):
+        if i in selected_neurons[2]:
+            logger.info(f"retrain {i}th neuron: {obfuscated_layer[i].weight}")
+    test_model(logger, obfuscated_retrain_model, dataloaders)
