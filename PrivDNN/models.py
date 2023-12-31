@@ -328,8 +328,8 @@ class SplitMNISTNet(SplitNet):
                 avgpool2_output = torch.square(self.avg_pool_layer(conv2_output))
 
                 fc1_input = avgpool2_output.reshape(avgpool2_output.shape[0], -1)
-                fc1_output = torch.square(self.fc1_layer(fc1_input))
-                fc2_output = torch.square(self.fc2_layer(fc1_output))
+                fc1_output = F.relu(self.fc1_layer(fc1_input))
+                fc2_output = F.relu(self.fc2_layer(fc1_output))
                 output = self.fc3_layer(fc2_output)
             else:
                 output = cpp_get_result(

@@ -817,7 +817,7 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
 
     update_shape_size(shape, batch_size);
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
-    cout << encrypted_neurons << endl;
+    cout << "Selected neurons of " << dataset << ": " << encrypted_neurons << endl;
     auto input = recombine_input(shape.conv_input[1], input_data);
     for (size_t round = 1; round <= shape.conv_input.size(); ++round) {
         auto conv_result = conv(dataset, seal, shape, round, input, encrypted_neurons, work_mode);

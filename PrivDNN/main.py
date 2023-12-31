@@ -95,9 +95,9 @@ if __name__ == "__main__":
         logger.info("SEAL separate inference:")
         worker.test_model(logger, trained_model, dataloaders)
 
-        # trained_model.cpp_work_mode = models.CppWorkMode.remove
-        # logger.info("SEAL remove inference:")
-        # worker.test_model(logger, trained_model, dataloaders)
+        """trained_model.cpp_work_mode = models.CppWorkMode.remove
+        logger.info("SEAL remove inference:")
+        worker.test_model(logger, trained_model, dataloaders)"""
 
         """if args.dataset == "MNIST":
             model_path = model_path.replace(".pth", "_cpp.pth")
