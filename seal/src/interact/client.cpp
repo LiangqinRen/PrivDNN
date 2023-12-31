@@ -137,7 +137,6 @@ void thread_conv_worker(
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
     for (int i = begining; i < ending; ++i) {
         auto sum = bias;
-
         if (round == 1) {
             for (size_t channel = 0; channel < shape.conv_input[1][1]; ++channel) {
                 for (size_t a = 0; a < shape.kernal_sizes[1]; ++a) {
@@ -150,7 +149,6 @@ void thread_conv_worker(
                             seal.encoder_.encode(input_values, SCALE, input_plain);
                             auto weight_cipher = get<Ciphertext>(weight[get_index(
                                 shape.conv_weight[1], {output_indexes[i][1], channel, a, b})]);
-
                             Ciphertext multiplied_cipher;
                             seal.evaluator_.multiply_plain(
                                 weight_cipher, input_plain, multiplied_cipher);
@@ -369,7 +367,6 @@ vector<variant<vector<double>, Ciphertext>> conv(
                     }
                     continue;
                 }
-
                 auto bias = std::get<Ciphertext>(conv_bias[i]);
                 vector<array<size_t, 4>> work_indexes;
                 for (size_t j = 0; j < output_shape[2]; ++j) {
@@ -507,7 +504,6 @@ vector<variant<vector<double>, Ciphertext>> avg_pool(
     Shape shapes,
     int round,
     vector<variant<vector<double>, Ciphertext>> &input) {
-
     auto input_shape = shapes.pool_input[round];
     auto output_shape = shapes.pool_output[round];
     size_t output_size = 1;
@@ -515,12 +511,9 @@ vector<variant<vector<double>, Ciphertext>> avg_pool(
         output_size *= output_shape[i];
     }
     vector<variant<vector<double>, Ciphertext>> output(output_size);
-
     Plaintext quarter_plain;
     seal.encoder_.encode(0.25, SCALE, quarter_plain);
-
     const size_t batch_size = output_shape[0];
-
     for (size_t i = 0; i < output_shape[1]; ++i) {
         for (size_t j = 0; j < output_shape[2]; ++j) {
             for (size_t k = 0; k < output_shape[3]; ++k) {
@@ -534,23 +527,18 @@ vector<variant<vector<double>, Ciphertext>> avg_pool(
                         get<Ciphertext>(input[get_index(input_shape, {0, i, j * 2, k * 2 + 1})]);
                     auto cipher_four = get<Ciphertext>(
                         input[get_index(input_shape, {0, i, j * 2 + 1, k * 2 + 1})]);
-
                     seal.evaluator_.add_inplace(cipher_one, cipher_two);
                     seal.evaluator_.add_inplace(cipher_three, cipher_four);
                     seal.evaluator_.add_inplace(cipher_one, cipher_three);
-
                     parms_id_type last_parms_id = cipher_one.parms_id();
                     seal.evaluator_.mod_switch_to_inplace(quarter_plain, last_parms_id);
-
                     seal.evaluator_.multiply_plain_inplace(cipher_one, quarter_plain);
                     seal.evaluator_.rescale_to_next_inplace(cipher_one);
-
                     output[get_index(output_shape, {0, i, j, k})] = cipher_one;
                 } else {
                     vector<double> values(batch_size);
                     for (size_t l = 0; l < batch_size; ++l) {
                         double pool_sum = 0;
-
                         pool_sum += get<vector<double>>(
                             input[get_index(input_shape, {0, i, j * 2, k * 2})])[l];
                         pool_sum += get<vector<double>>(
@@ -559,7 +547,6 @@ vector<variant<vector<double>, Ciphertext>> avg_pool(
                             input[get_index(input_shape, {0, i, j * 2 + 1, k * 2})])[l];
                         pool_sum += get<vector<double>>(
                             input[get_index(input_shape, {0, i, j * 2 + 1, k * 2 + 1})])[l];
-
                         double pool_average = pool_sum / 4;
                         values[l] = pool_average;
                     }

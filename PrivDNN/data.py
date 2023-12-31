@@ -122,7 +122,7 @@ def get_EMNIST_dataloader(use_train_set_percent=100):
         ),
         "test": DataLoader(
             test_dataset,
-            batch_size=len(test_dataset),
+            batch_size=int(len(validate_dataset) / 2),  # limit of 8192 from SEAL
             shuffle=False,
         ),
     }
