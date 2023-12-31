@@ -158,7 +158,7 @@ class SplitNet(nn.Module):
         layers = self.get_layers_list(include_fc_layers=True)
         trained_data_list = []
         for layer in layers:
-            if isinstance(layer, list):
+            if isinstance(layer, list) and isinstance(layer[0], MaskedLayer):
                 if layer[0].layer_index == 1 or layer[0].layer_index == 2:
                     trained_data_list.extend(
                         torch.flatten(layer[0].layer.weight).tolist()
