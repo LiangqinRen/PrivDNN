@@ -7,7 +7,7 @@ function=$2
 dataset=`echo $dataset | tr '[:lower:]' '[:upper:]'`
 
 declare -A accuracy
-accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76')
+accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76' ["TINYIMAGENET"]='50.00')
 
 
 if [[ $function == 'train' ]]
@@ -29,7 +29,8 @@ then
     python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 50 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 elif [[ $function == 'recover' ]]
 then
-    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 50
+    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000
+    #python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000 --recover_freeze
     # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 75
     #python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 100
     exit

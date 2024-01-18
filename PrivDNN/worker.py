@@ -295,8 +295,7 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
 
         if model_path and best_model:
             if args.model_work_mode == utils.ModelWorkMode.train:
-                pass
-                # best_model.copy_parameters_to_split_model()
+                best_model.copy_parameters_to_split_model()
 
             if args.model_work_mode == utils.ModelWorkMode.recover:
                 save_model(model, model_path)
@@ -1063,6 +1062,7 @@ def train_from_scratch(args, logger, dataloaders):
         "EMNIST": models.SplitEMNISTNet(),
         "GTSRB": models.SplitGTSRBNet(),
         "CIFAR10": models.SplitCIFAR10Net(),
+        "TinyImageNet": models.SplitTinyImageNet(),
     }
     model = model_list[dataloaders_train["name"]]
     model.set_layers_on_cuda()
@@ -1091,6 +1091,11 @@ def train_from_scratch(args, logger, dataloaders):
             optimizer, T_max=dataloaders_train["epoch"]
         )
     elif dataloaders_train["name"] == "CIFAR10":
+        optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=dataloaders_train["epoch"]
+        )
+    elif dataloaders["name"] == "TinyImageNet":
         optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=dataloaders_train["epoch"]
@@ -1147,7 +1152,11 @@ def recover_model(args, logger, model, dataloaders, model_path):
     recover_parameters = []
     others_parameters = []
     for layers in model.get_layers_list(True):
-        if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
+        if (
+            isinstance(layers, nn.Linear)
+            or isinstance(layers, nn.BatchNorm2d)
+            or isinstance(layers, Sequential)
+        ):
             others_parameters.extend(list(layers.parameters()))
         else:
             if isinstance(layers[0], nn.Conv2d):

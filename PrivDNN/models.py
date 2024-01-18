@@ -1,3 +1,4 @@
+import copy
 import enum
 import torch
 import ctypes
@@ -154,9 +155,10 @@ class SplitNet(nn.Module):
                 layer[i].layer.weight = torch.nn.Parameter(
                     torch.reshape(layer[0].layer.weight[i - 1], weight_shape)
                 )
-                layer[i].layer.bias = torch.nn.Parameter(
-                    torch.reshape(layer[0].layer.bias[i - 1], [1])
-                )
+                if layer[0].layer.bias:
+                    layer[i].layer.bias = torch.nn.Parameter(
+                        torch.reshape(layer[0].layer.bias[i - 1], [1])
+                    )
 
     def _get_trained_data_pointer(self, dataset):
         layers = self.get_layers_list(include_fc_layers=True)
@@ -1299,8 +1301,79 @@ class SplitTinyImageNet(SplitNet):
             bias=False,
         )
         self.bn1 = nn.BatchNorm2d(64)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.bn3 = nn.BatchNorm2d(64)
 
-        self.layer1 = self._make_layer(1, self.Block, 64, self.layers[0], stride=1)
+        self.conv1_layers = [
+            MaskedLayer(
+                nn.Conv2d(
+                    in_channels=3, out_channels=64, kernel_size=3, padding=1, bias=False
+                ),
+                1,
+            )
+        ] + [
+            MaskedLayer(
+                nn.Conv2d(
+                    in_channels=3, out_channels=1, kernel_size=3, padding=1, bias=False
+                ),
+                1,
+            )
+            for _ in range(64)
+        ]
+
+        self.conv2_layers = [
+            MaskedLayer(
+                nn.Conv2d(
+                    in_channels=64,
+                    out_channels=64,
+                    kernel_size=3,
+                    padding=1,
+                    bias=False,
+                ),
+                2,
+            )
+        ] + [
+            MaskedLayer(
+                nn.Conv2d(
+                    in_channels=64, out_channels=1, kernel_size=3, padding=1, bias=False
+                ),
+                2,
+            )
+            for _ in range(64)
+        ]
+
+        self.conv3_layers = [
+            MaskedLayer(
+                nn.Conv2d(
+                    in_channels=64,
+                    out_channels=64,
+                    kernel_size=3,
+                    padding=1,
+                    bias=False,
+                ),
+                3,
+            )
+        ] + [
+            MaskedLayer(
+                nn.Conv2d(
+                    in_channels=64, out_channels=1, kernel_size=3, padding=1, bias=False
+                ),
+                3,
+            )
+            for _ in range(64)
+        ]
+
+        self.shortcut = nn.Sequential(
+            nn.Conv2d(
+                64,
+                64,
+                kernel_size=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(64),
+        )
+
+        # self.layer1 = self._make_layer(1, self.Block, 64, self.layers[0], stride=1)
         self.layer2 = self._make_layer(2, self.Block, 128, self.layers[1], stride=2)
         self.layer3 = self._make_layer(3, self.Block, 256, self.layers[2], stride=2)
         self.layer4 = self._make_layer(4, self.Block, 512, self.layers[3], stride=2)
@@ -1324,9 +1397,18 @@ class SplitTinyImageNet(SplitNet):
         return nn.Sequential(*layers)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        x = F.relu(self.bn1(self.conv1(input)))
+        x = torch.square(self.bn1(self._conv(self.conv1_layers, input)))
 
-        x = self.layer1(x)
+        short_input = x
+
+        x = self._conv(self.conv2_layers, x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.bn3(self.conv3_layers[0](x))
+
+        x += self.shortcut(short_input)
+
+        # x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
@@ -1339,15 +1421,23 @@ class SplitTinyImageNet(SplitNet):
 
     def get_layers_list(self, include_fc_layers=False):
         layers_list = [
-            self.conv1,
-            self.bn1,
-            self.layer1,
-            self.layer2,
-            self.layer3,
-            self.layer4,
+            self.conv1_layers,
+            self.conv2_layers,
+            self.conv3_layers,
         ]
 
         if include_fc_layers:
-            layers_list.extend([self.fc])
+            layers_list.extend(
+                [
+                    self.bn1,
+                    self.bn2,
+                    self.bn3,
+                    self.shortcut,
+                    self.layer2,
+                    self.layer3,
+                    self.layer4,
+                    self.fc,
+                ]
+            )
 
         return layers_list
