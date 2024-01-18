@@ -136,7 +136,11 @@ class SplitNet(nn.Module):
     def set_layers_on_cuda(self):
         layers_list = self.get_layers_list(True)
         for layers in layers_list:
-            if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
+            if (
+                isinstance(layers, nn.Conv2d)
+                or isinstance(layers, nn.Linear)
+                or isinstance(layers, nn.BatchNorm2d)
+            ):
                 layers.cuda()
             else:
                 for layer in layers:
@@ -1203,7 +1207,6 @@ class SplitCIFAR10Net(SplitNet):
             layers_list.extend(
                 [
                     self.conv2_obscure,
-                    # self.batch_normal1_layer,
                     self.batch_normal2_layer,
                     self.batch_normal3_layer,
                     self.batch_normal4_layer,
@@ -1221,5 +1224,130 @@ class SplitCIFAR10Net(SplitNet):
                     self.fc3_layer,
                 ]
             )
+
+        return layers_list
+
+
+class SplitTinyImageNet(SplitNet):
+    class Block(nn.Module):  # ResNet18
+        def __init__(
+            self,
+            index: int,
+            in_channel: int,
+            out_channel: int,
+            stride: int,
+            expansion: int = 1,
+        ):
+            super(__class__, self).__init__()
+            self.index = index
+
+            self.conv1 = nn.Conv2d(
+                in_channel,
+                out_channel,
+                kernel_size=3,
+                stride=stride,
+                padding=1,
+                bias=False,
+            )
+            self.bn1 = nn.BatchNorm2d(out_channel)
+            self.relu = nn.ReLU(inplace=True)
+            self.conv2 = nn.Conv2d(
+                out_channel,
+                out_channel * expansion,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+            )
+            self.bn2 = nn.BatchNorm2d(out_channel * expansion)
+
+            self.shortcut = nn.Sequential()
+            if stride != 1:
+                self.shortcut = nn.Sequential(
+                    nn.Conv2d(
+                        in_channel,
+                        out_channel * expansion,
+                        kernel_size=1,
+                        stride=stride,
+                        bias=False,
+                    ),
+                    nn.BatchNorm2d(out_channel * expansion),
+                )
+
+        def forward(self, input: torch.tensor) -> torch.tensor:
+            x = F.relu(self.bn1(self.conv1(input)))
+            x = self.bn2(self.conv2(x))
+
+            x += self.shortcut(input)
+
+            return F.relu(x)
+
+    def __init__(
+        self,
+        classes: int = 200,
+    ):
+        super(__class__, self).__init__()
+
+        self.in_channels = 64  # ResNet18
+        self.expansion = 1
+        self.layers = [2, 2, 2, 2]
+
+        self.conv1 = nn.Conv2d(
+            in_channels=3,
+            out_channels=64,
+            kernel_size=3,
+            padding=1,
+            bias=False,
+        )
+        self.bn1 = nn.BatchNorm2d(64)
+
+        self.layer1 = self._make_layer(1, self.Block, 64, self.layers[0], stride=1)
+        self.layer2 = self._make_layer(2, self.Block, 128, self.layers[1], stride=2)
+        self.layer3 = self._make_layer(3, self.Block, 256, self.layers[2], stride=2)
+        self.layer4 = self._make_layer(4, self.Block, 512, self.layers[3], stride=2)
+
+        self.fc = nn.Linear(512 * 4, classes)
+
+    def _make_layer(
+        self,
+        index: int,
+        block: Block,
+        out_channels: int,
+        blocks: int,
+        stride: int,
+    ) -> nn.Sequential:
+        layers = []
+        layers.append(block(index, self.in_channels, out_channels, stride))
+        self.in_channels = out_channels * self.expansion
+
+        for _ in range(1, blocks):
+            layers.append(block(index, self.in_channels, out_channels, 1))
+        return nn.Sequential(*layers)
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        x = F.relu(self.bn1(self.conv1(input)))
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = F.avg_pool2d(x, 4)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+
+        return x
+
+    def get_layers_list(self, include_fc_layers=False):
+        layers_list = [
+            self.conv1,
+            self.bn1,
+            self.layer1,
+            self.layer2,
+            self.layer3,
+            self.layer4,
+        ]
+
+        if include_fc_layers:
+            layers_list.extend([self.fc])
 
         return layers_list

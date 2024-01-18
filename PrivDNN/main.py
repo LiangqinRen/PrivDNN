@@ -35,6 +35,7 @@ if __name__ == "__main__":
         "EMNIST": data.get_EMNIST_dataloader,
         "GTSRB": data.get_GTSRB_dataloader,
         "CIFAR10": data.get_CIFAR10_dataloader,
+        "TINYIMAGENET": data.get_TinyImageNet_dataloader,
     }
 
     logger.info("check CUDA, get argparser and logger")

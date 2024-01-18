@@ -1,8 +1,11 @@
 import utils
 
+import os
 import torch
 import torchvision
 import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+import torch.utils.data as data
 
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import random_split
@@ -245,6 +248,33 @@ def get_CIFAR10_dataloader(use_train_set_percent=100):
             batch_size=len(test_dataset),
             shuffle=False,
         ),
+    }
+
+    return dataloaders
+
+
+def get_TinyImageNet_dataloader(use_train_set_percent=100):
+    source_path = f"../data/tiny-imagenet-200"
+
+    train_transform = transforms.Compose([transforms.ToTensor()])
+    train_dataset = datasets.ImageFolder(
+        os.path.join(source_path, "train"), train_transform
+    )
+
+    test_transform = transforms.Compose([transforms.ToTensor()])
+    validate_dataset = datasets.ImageFolder(
+        os.path.join(source_path, "validate"), test_transform
+    )
+    test_dataset = datasets.ImageFolder(
+        os.path.join(source_path, "test"), test_transform
+    )
+
+    dataloaders = {
+        "name": "TinyImageNet",
+        "epoch": 128,
+        "train": DataLoader(train_dataset, batch_size=128, shuffle=True),
+        "validate": DataLoader(validate_dataset, batch_size=128, shuffle=True),
+        "test": DataLoader(test_dataset, batch_size=128, shuffle=False),
     }
 
     return dataloaders

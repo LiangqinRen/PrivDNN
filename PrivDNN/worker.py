@@ -16,8 +16,9 @@ import torch.optim as optim
 import itertools as it
 import numpy as np
 import matplotlib.pyplot as plt
-from torchvision.utils import save_image
 
+from torch.nn.modules.container import Sequential
+from torchvision.utils import save_image
 from torch.ao.pruning._experimental.pruner.FPGM_pruner import FPGMPruner
 from tqdm import tqdm
 
@@ -66,6 +67,7 @@ def get_model(logger, dataloaders, model_path):
         "EMNIST": models.SplitEMNISTNet(),
         "GTSRB": models.SplitGTSRBNet(),
         "CIFAR10": models.SplitCIFAR10Net(),
+        "TinyImageNet": models.SplitTinyImageNet(),
     }
     model = model_list[dataloaders["name"]]
     model.set_layers_on_cuda()
@@ -243,6 +245,23 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=dataloaders["epoch"]
         )
+    elif dataloaders["name"] == "TinyImageNet":
+        if isinstance(parameters[0], list):
+            selected_parameters = parameters[0]
+            others_parameters = parameters[1]
+            optimizer = optim.SGD(
+                [
+                    {"params": selected_parameters, "lr": 5e-3},
+                    {"params": others_parameters, "lr": 5e-4},
+                ],
+                momentum=0.9,
+            )
+        else:
+            optimizer = optim.SGD(parameters, lr=5e-2, momentum=0.9)
+
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=dataloaders["epoch"]
+        )
 
     best_loss = 1
     best_model = None
@@ -276,7 +295,8 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
 
         if model_path and best_model:
             if args.model_work_mode == utils.ModelWorkMode.train:
-                best_model.copy_parameters_to_split_model()
+                pass
+                # best_model.copy_parameters_to_split_model()
 
             if args.model_work_mode == utils.ModelWorkMode.recover:
                 save_model(model, model_path)
@@ -297,10 +317,35 @@ def train_and_save_model(args, logger, dataloaders, model_path):
     layers_list = model.get_layers_list(include_fc_layers=True)
     parameters = []
     for layers in layers_list:
+        if (
+            isinstance(layers, nn.Conv2d)
+            or isinstance(layers, nn.Linear)
+            or isinstance(layers, nn.BatchNorm2d)
+        ):
+            parameters.extend(list(layers.parameters()))
+        else:
+            if isinstance(layers, list):
+                # continue
+                parameters.extend(list(layers[0].parameters()))
+            elif isinstance(layers, Sequential):
+                # print(type(layers))
+                # continue
+                parameters.extend(list(layers.parameters()))
+                """for layer in layers:
+                    if isinstance(layers, nn.Conv2d) or isinstance(
+                        layers, nn.BatchNorm2d
+                    ):
+                        parameters.extend(list(layer.parameters()))
+                    else:
+                        print(type(layer))"""
+    # print(parameters)
+    # quit()
+    """parameters = []
+    for layers in layers_list:
         if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
             parameters.extend(list(layers.parameters()))
         else:
-            parameters.extend(list(layers[0].parameters()))
+            parameters.extend(list(layers[0].parameters()))"""
 
     train_model(args, logger, model, dataloaders, parameters, model_path)
 
