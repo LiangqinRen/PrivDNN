@@ -7,7 +7,7 @@ function=$2
 dataset=`echo $dataset | tr '[:lower:]' '[:upper:]'`
 
 declare -A accuracy
-accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76' ["TINYIMAGENET"]='50.00')
+accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76' ["TINYIMAGENET"]='72.28')
 
 
 if [[ $function == 'train' ]]
@@ -25,8 +25,12 @@ elif [[ $function == 'select' ]]
 then
     # select filters, the main file decides the algorithm to use
     # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
-
-    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 50 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
+    
+    for i in {80..95..5}
+    do 
+        python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor $i --accuracy_base ${accuracy[$dataset]} --greedy_step 1
+    done
+    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 50 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 elif [[ $function == 'recover' ]]
 then
     python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000

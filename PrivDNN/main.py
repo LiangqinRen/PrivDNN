@@ -60,15 +60,15 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
 
         # worker.select_neurons_v1(args, logger, trained_model, dataloaders)
-        worker.select_neurons_v2(args, logger, trained_model, dataloaders)
-        """worker.select_neurons_v2_amend(
+        #  worker.select_neurons_v2(args, logger, trained_model, dataloaders)
+        worker.select_neurons_v2_amend(
             args,
             logger,
             trained_model,
             dataloaders,
             f"selected_neurons_{args.percent_factor - 5}%.json",
             f"selected_neurons_{args.percent_factor}%.json",
-        )"""
+        )
 
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)

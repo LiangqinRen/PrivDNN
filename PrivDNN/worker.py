@@ -86,17 +86,42 @@ def get_model_accuracy(model, dataloader):
             imgs = imgs.cuda()
             labels = labels.cuda()
             scores = model(imgs)
+            _, predictions = torch.topk(scores, 5, dim=1)
+            # print(predictions.shape)
+            # quit()
+            """print(scores[0])
+            _, predictions = scores[0].max(1)
+            print(_, predictions)
+            quit()
             _, predictions = scores.max(1)
-            correct_count += (predictions == labels).sum()
+            print(_, predictions)
+            quit()"""
+            # _, predictions = scores.max(1)
+            pre = torch.split(predictions, 1, dim=1)
+            """print(pre[0].view(-1).shape)
+            _, predictions = scores.max(1)
+            print(predictions.shape)
+            print(pre[0].view(-1) - predictions)
+            quit()"""
 
-            for i in range(len(predictions)):
+            correct_count += (pre[0].view(-1) == labels).sum()
+            correct_count += (pre[1].view(-1) == labels).sum()
+            correct_count += (pre[2].view(-1) == labels).sum()
+            correct_count += (pre[3].view(-1) == labels).sum()
+            correct_count += (pre[4].view(-1) == labels).sum()
+
+            # correct_count = torch.eq(predictions[:, None, ...], labels).any(dim=1)
+            # take the mean of correct_pixels to get the overall average top-k accuracy:
+            # top_k_acc = correct_pixels.mean()
+
+            """for i in range(len(predictions)):
                 if not labels[i].item() in label_correct_count:
                     label_correct_count[labels[i].item()] = [0, 0]
 
                 label_correct_count[labels[i].item()][1] += 1
 
                 if predictions[i] == labels[i]:
-                    label_correct_count[labels[i].item()][0] += 1
+                    label_correct_count[labels[i].item()][0] += 1"""
 
     accuracy = float(f"{float(correct_count) / float(samples_count) * 100:.2f}")
 
