@@ -88,6 +88,12 @@ def get_argparser():
         help="work mode of the model",
     )
     parser.add_argument(
+        "--top_k_accuracy",
+        type=int,
+        default=1,
+        help="top k predictions will be treated as correct",
+    )
+    parser.add_argument(
         "--train_dataset_percent",
         type=int,
         default=None,

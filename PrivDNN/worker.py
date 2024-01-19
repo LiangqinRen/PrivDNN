@@ -76,7 +76,7 @@ def get_model(logger, dataloaders, model_path):
     return model
 
 
-def get_model_accuracy(model, dataloader):
+def get_model_accuracy(model, dataloader, top_k_accuracy=1):
     correct_count = 0
     samples_count = len(dataloader.dataset)
     label_correct_count = {}
@@ -86,53 +86,33 @@ def get_model_accuracy(model, dataloader):
             imgs = imgs.cuda()
             labels = labels.cuda()
             scores = model(imgs)
-            _, predictions = torch.topk(scores, 5, dim=1)
-            # print(predictions.shape)
-            # quit()
-            """print(scores[0])
-            _, predictions = scores[0].max(1)
-            print(_, predictions)
-            quit()
-            _, predictions = scores.max(1)
-            print(_, predictions)
-            quit()"""
-            # _, predictions = scores.max(1)
+            _, predictions = torch.topk(scores, top_k_accuracy, dim=1)
             pre = torch.split(predictions, 1, dim=1)
-            """print(pre[0].view(-1).shape)
-            _, predictions = scores.max(1)
-            print(predictions.shape)
-            print(pre[0].view(-1) - predictions)
-            quit()"""
 
-            correct_count += (pre[0].view(-1) == labels).sum()
-            correct_count += (pre[1].view(-1) == labels).sum()
-            correct_count += (pre[2].view(-1) == labels).sum()
-            correct_count += (pre[3].view(-1) == labels).sum()
-            correct_count += (pre[4].view(-1) == labels).sum()
+            correct_count = 0
+            for i in range(top_k_accuracy):
+                correct_count += (pre[i].view(-1) == labels).sum()
 
-            # correct_count = torch.eq(predictions[:, None, ...], labels).any(dim=1)
-            # take the mean of correct_pixels to get the overall average top-k accuracy:
-            # top_k_acc = correct_pixels.mean()
-
-            """for i in range(len(predictions)):
+            for i in range(len(predictions)):
                 if not labels[i].item() in label_correct_count:
                     label_correct_count[labels[i].item()] = [0, 0]
 
                 label_correct_count[labels[i].item()][1] += 1
 
-                if predictions[i] == labels[i]:
-                    label_correct_count[labels[i].item()][0] += 1"""
+                for j in range(top_k_accuracy):
+                    if predictions[i][j] == labels[i]:
+                        label_correct_count[labels[i].item()][0] += 1
 
     accuracy = float(f"{float(correct_count) / float(samples_count) * 100:.2f}")
 
     return correct_count, samples_count, accuracy, label_correct_count
 
 
-def test_model(logger, model, dataloaders):
+def test_model(args, logger, model, dataloaders):
     timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
 
     correct_count, samples_count, accuracy, _ = get_model_accuracy(
-        model, dataloaders["test"]
+        model, dataloaders["test"], args.top_k_accuracy
     )
     logger.info(f"[{correct_count}/{samples_count}], Accuracy: {accuracy:.2f}%")
 
@@ -1141,7 +1121,7 @@ def train_from_scratch(args, logger, dataloaders):
             loss_ep += loss.item()
         scheduler.step()
 
-    test_model(logger, model, dataloaders_train)
+    test_model(args, logger, model, dataloaders_train)
 
 
 def recover_model(args, logger, model, dataloaders, model_path):
@@ -1172,7 +1152,7 @@ def recover_model(args, logger, model, dataloaders, model_path):
     logger.info(f"selected_neurons: {selected_neurons}")
     logger.info("original accuracy")
     model.work_mode = models.WorkMode.split
-    test_model(logger, model, dataloaders)
+    test_model(args, logger, model, dataloaders)
 
     recover_parameters = []
     others_parameters = []
@@ -1214,7 +1194,7 @@ def recover_model(args, logger, model, dataloaders, model_path):
     )
 
     logger.info("after recovering the model(ReLU)")
-    test_model(logger, model, dataloaders)
+    test_model(args, logger, model, dataloaders)
 
 
 def obfuscate_intermidiate_results(
@@ -1442,7 +1422,7 @@ def defense_weight_stealing(args, logger, model, dataloaders) -> None:
             obfuscated_layer[i].reset_parameters()
             retrain_parameters.extend(list(obfuscated_layer[i].parameters()))
 
-    test_model(logger, obfuscated_retrain_model, dataloaders)
+    test_model(args, logger, obfuscated_retrain_model, dataloaders)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(retrain_parameters, lr=5e-4)
@@ -1485,4 +1465,4 @@ def defense_weight_stealing(args, logger, model, dataloaders) -> None:
     for i in range(len(obfuscated_layer)):
         if i in selected_neurons[2]:
             logger.info(f"retrain {i}th neuron: {obfuscated_layer[i].weight}")
-    test_model(logger, obfuscated_retrain_model, dataloaders)
+    test_model(args, logger, obfuscated_retrain_model, dataloaders)

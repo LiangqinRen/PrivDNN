@@ -14,6 +14,7 @@ if __name__ == "__main__":
             \tdataset: {args.dataset}\n\
             \tlog_level: {args.log_level}\n\
             \tmodel_work_mode: {args.model_work_mode}\n\
+            \ttop_k_accuracy: {args.top_k_accuracy}\n\
             \ttrain_dataset_percent: {args.train_dataset_percent}\n\
             \tselected_neurons_file: {args.selected_neurons_file}\n\
             \tinitial_layer_index: {args.initial_layer_index}\n\
@@ -53,7 +54,7 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
         if args.selected_neurons_file is None:
             layers = trained_model.get_layers_list()
-            worker.test_model(logger, trained_model, dataloaders)
+            worker.test_model(args, logger, trained_model, dataloaders)
         else:
             worker.test_separated_model(args, logger, trained_model, dataloaders)
     elif args.model_work_mode == utils.ModelWorkMode.select_subset:

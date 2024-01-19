@@ -20,12 +20,12 @@ then
     python ../PrivDNN/main.py --dataset $dataset --model_work_mode 2
 
     # test the model performance with selected filters
-    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 2 --selected_neurons_file "selected_neurons.json" --accuracy_base ${accuracy[$dataset]}
+    # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 2 --selected_neurons_file "selected_neurons_100%.json" --accuracy_base ${accuracy[$dataset]} 
 elif [[ $function == 'select' ]]
 then
     # select filters, the main file decides the algorithm to use
     # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
-    
+
     for i in {80..95..5}
     do 
         python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor $i --accuracy_base ${accuracy[$dataset]} --greedy_step 1
@@ -33,8 +33,11 @@ then
     # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 50 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 elif [[ $function == 'recover' ]]
 then
-    python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000
-    #python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000 --recover_freeze
+    for count in {80..100..5}
+    do
+        python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000 --percent_factor $count
+        python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --recover_dataset_count 1000 --percent_factor $count --recover_freeze
+    done
     # python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 75
     #python ../PrivDNN/main.py --dataset $dataset --model_work_mode 4 --percent_factor 100
     exit
