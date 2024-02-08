@@ -61,15 +61,15 @@ if __name__ == "__main__":
         trained_model = worker.load_trained_model(model_path)
 
         # worker.select_neurons_v1(args, logger, trained_model, dataloaders)
-        #  worker.select_neurons_v2(args, logger, trained_model, dataloaders)
-        worker.select_neurons_v2_amend(
+        worker.select_neurons_v2(args, logger, trained_model, dataloaders)
+        """worker.select_neurons_v2_amend(
             args,
             logger,
             trained_model,
             dataloaders,
             f"selected_neurons_{args.percent_factor - 5}%.json",
             f"selected_neurons_{args.percent_factor}%.json",
-        )
+        )"""
 
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 1)
         # worker.select_neurons_v3(args, logger, trained_model, dataloaders, 2)
@@ -95,11 +95,11 @@ if __name__ == "__main__":
 
         trained_model.cpp_work_mode = models.CppWorkMode.separate
         logger.info("SEAL separate inference:")
-        worker.test_model(logger, trained_model, dataloaders)
+        worker.test_model(args, logger, trained_model, dataloaders)
 
         """trained_model.cpp_work_mode = models.CppWorkMode.remove
         logger.info("SEAL remove inference:")
-        worker.test_model(logger, trained_model, dataloaders)"""
+        worker.test_model(args, logger, trained_model, dataloaders)"""
 
         """if args.dataset == "MNIST":
             model_path = model_path.replace(".pth", "_cpp.pth")
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         trained_model.work_mode = models.WorkMode.cipher
         trained_model.cpp_work_mode = models.CppWorkMode.full
         logger.info("SEAL full inference:")
-        worker.test_model(logger, trained_model, dataloaders)"""
+        worker.test_model(args, logger, trained_model, dataloaders)"""
     elif args.model_work_mode == utils.ModelWorkMode.something:
         trained_model = worker.load_trained_model(model_path)
     else:

@@ -264,11 +264,11 @@ class SplitMNISTNet(SplitNet):
             output = self.fc3_layer(fc2_output)
         elif self.work_mode == WorkMode.cipher:
             work_mode = int(  # 0 separate, 1 remove, 2 full
-                0
-                if self.cpp_work_mode == CppWorkMode.separate
-                else 1
-                if self.cpp_work_mode == CppWorkMode.remove
-                else 2,
+                (
+                    0
+                    if self.cpp_work_mode == CppWorkMode.separate
+                    else 1 if self.cpp_work_mode == CppWorkMode.remove else 2
+                ),
             )
 
             client_library = ctypes.CDLL("../seal/output/lib/libclient.so")
@@ -1397,8 +1397,8 @@ class SplitTinyImageNet(SplitNet):
         return nn.Sequential(*layers)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        x = torch.square(self.bn1(self._conv(self.conv1_layers, input)))
-
+        # x = torch.square(self.bn1(self._conv(self.conv1_layers, input)))
+        x = torch.square(self._conv(self.conv1_layers, input))
         short_input = x
 
         x = self._conv(self.conv2_layers, x)

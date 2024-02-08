@@ -78,20 +78,18 @@ def get_model(logger, dataloaders, model_path):
 
 def get_model_accuracy(model, dataloader, top_k_accuracy=1):
     correct_count = 0
-    samples_count = len(dataloader.dataset)
     label_correct_count = {}
-
     with torch.no_grad():
         for imgs, labels in dataloader:
             imgs = imgs.cuda()
             labels = labels.cuda()
             scores = model(imgs)
-            _, predictions = torch.topk(scores, top_k_accuracy, dim=1)
-            pre = torch.split(predictions, 1, dim=1)
 
-            correct_count = 0
+            _, predictions = torch.topk(scores, top_k_accuracy, dim=1)
+            split_predictions = torch.split(predictions, 1, dim=1)
+
             for i in range(top_k_accuracy):
-                correct_count += (pre[i].view(-1) == labels).sum()
+                correct_count += (split_predictions[i].view(-1) == labels).sum()
 
             for i in range(len(predictions)):
                 if not labels[i].item() in label_correct_count:
@@ -103,6 +101,7 @@ def get_model_accuracy(model, dataloader, top_k_accuracy=1):
                     if predictions[i][j] == labels[i]:
                         label_correct_count[labels[i].item()][0] += 1
 
+    samples_count = len(dataloader.dataset)
     accuracy = float(f"{float(correct_count) / float(samples_count) * 100:.2f}")
 
     return correct_count, samples_count, accuracy, label_correct_count
@@ -291,7 +290,7 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
             best_model = copy.deepcopy(model)
 
         scheduler.step()
-        if i % 8 == 0 or i == dataloaders["epoch"] - 1:
+        if i % 4 == 0 or i == dataloaders["epoch"] - 1:
             with torch.no_grad():
                 _, _, accuracy, _ = get_model_accuracy(model, dataloaders["validate"])
                 logger.info(
@@ -1144,9 +1143,11 @@ def recover_model(args, logger, model, dataloaders, model_path):
 
     selected_neurons = load_selected_neurons(
         dataloaders_recover,
-        f"selected_neurons_{int(args.percent_factor)}%.json"
-        if args.percent_factor
-        else f"recover_selected_neurons.json",
+        (
+            f"selected_neurons_{int(args.percent_factor)}%.json"
+            if args.percent_factor
+            else f"recover_selected_neurons.json"
+        ),
     )
     model.selected_neurons = selected_neurons
     logger.info(f"selected_neurons: {selected_neurons}")
