@@ -67,11 +67,22 @@ const Shape cifar10{
     {{1, 64}, {2, 64}},
 };
 
+const Shape tinyimagenet{
+    {{1, 3}, {2, 3}},
+    {{1, {1, 3, 64, 64}}, {2, {1, 64, 64, 64}}},
+    {{1, {1, 64, 64, 64}}, {2, {1, 64, 64, 64}}},
+    {{1, {64, 3, 3, 3}}, {2, {64, 64, 3, 3}}},
+    {{1, 64}, {2, 64}},
+};
+
 static unordered_map<string, struct Shape> Shapes{
     {string("MNIST"), mnist},
     {string("EMNIST"), emnist},
     {string("GTSRB"), gtsrb},
-    {string("CIFAR10"), cifar10}};
+    {string("CIFAR10"), cifar10},
+    {string("TinyImageNet"), tinyimagenet}
+
+};
 
 void update_shape_size(Shape &shape, size_t batch_size);
 

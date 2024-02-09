@@ -128,10 +128,10 @@ def closing_test(args, logger, model, dataloaders, selected_neurons, file_name=N
         separate_accuracy,
         separate_label_correct_count,
     ) = get_accuracy_after_separating_neurons(
-        copy.deepcopy(model), dataloaders, selected_neurons
+        args,copy.deepcopy(model), dataloaders, selected_neurons
     )
     remove_accuracy, remove_label_correct_count = get_accuracy_after_removing_neurons(
-        copy.deepcopy(model), dataloaders, selected_neurons
+        args, copy.deepcopy(model), dataloaders, selected_neurons
     )
 
     point = get_neuron_point(args, separate_accuracy, remove_accuracy)
@@ -141,7 +141,7 @@ def closing_test(args, logger, model, dataloaders, selected_neurons, file_name=N
     )
 
     _, _, _, original_label_correct_count = get_model_accuracy(
-        model, dataloaders["test"]
+        model, dataloaders["test"], args.top_k_accuracy
     )
     original_label_info = "original label accuracy:\n"
     for label, count in sorted(original_label_correct_count.items()):
@@ -292,7 +292,9 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
         scheduler.step()
         if i % 4 == 0 or i == dataloaders["epoch"] - 1:
             with torch.no_grad():
-                _, _, accuracy, _ = get_model_accuracy(model, dataloaders["validate"])
+                _, _, accuracy, _ = get_model_accuracy(
+                    model, dataloaders["validate"], args.top_k_accuracy
+                )
                 logger.info(
                     f"[Epoch {i:3}]Loss: {average_loss:.8f}, Accuracy: {accuracy:5.3f}%"
                 )
@@ -370,7 +372,7 @@ def train_and_save_percent_dataset_model(args, logger, dataloaders, percent_rang
         trained_model = load_trained_model(percent_model_path)
 
         _, _, accuracy, _ = get_model_accuracy(
-            trained_model, percent_dataloaders["test"]
+            trained_model, percent_dataloaders["test"], args.top_k_accuracy
         )
         accuracies.append(accuracy)
         logger.info(
@@ -383,12 +385,14 @@ def train_and_save_percent_dataset_model(args, logger, dataloaders, percent_rang
     )
 
 
-def get_accuracy_after_removing_neurons(model, dataloaders, selected_neurons):
+def get_accuracy_after_removing_neurons(args, model, dataloaders, selected_neurons):
     layers_list = model.get_layers_list()
     for i in list(selected_neurons.keys()):
         layers_list[i - 1][0].set_neurons_to_remove(selected_neurons[i])
 
-    _, _, accuracy, label_correct_count = get_model_accuracy(model, dataloaders["test"])
+    _, _, accuracy, label_correct_count = get_model_accuracy(
+        model, dataloaders["test"], args.top_k_accuracy
+    )
 
     return accuracy, label_correct_count
 
@@ -415,7 +419,7 @@ def get_first_layer_neurons_to_separate(
                 first_layer_index + 1: selected_layer_neurons + [neuron_index]
             }
             accuracy, _ = get_accuracy_after_removing_neurons(
-                copy.deepcopy(model), dataloaders, layer_neuron_to_remove
+                args, copy.deepcopy(model), dataloaders, layer_neuron_to_remove
             )
             accuracies.append([accuracy, neuron_index])
 
@@ -429,7 +433,7 @@ def get_first_layer_neurons_to_separate(
     return selected_layer_neurons[:neurons_limit]
 
 
-def get_accuracy_after_separating_neurons(model, dataloaders, selected_neurons):
+def get_accuracy_after_separating_neurons(args, model, dataloaders, selected_neurons):
     layers_list = model.get_layers_list()
     for i in list(selected_neurons.keys())[1:]:
         current_layer = layers_list[i - 1][0]
@@ -437,7 +441,9 @@ def get_accuracy_after_separating_neurons(model, dataloaders, selected_neurons):
             selected_neurons[i - 1], selected_neurons[i]
         )
 
-    _, _, accuracy, label_correct_count = get_model_accuracy(model, dataloaders["test"])
+    _, _, accuracy, label_correct_count = get_model_accuracy(
+        model, dataloaders["test"], args.top_k_accuracy
+    )
 
     return accuracy, label_correct_count
 
@@ -470,10 +476,16 @@ def get_layer_neurons_to_separate(
             index_selected_neurons[index + 1] = selected_layer_neurons + [neuron_index]
 
             separating_accuracy, _ = get_accuracy_after_separating_neurons(
-                copy.deepcopy(model), dataloaders, copy.deepcopy(index_selected_neurons)
+                args,
+                copy.deepcopy(model),
+                dataloaders,
+                copy.deepcopy(index_selected_neurons),
             )
             removing_accuracy, _ = get_accuracy_after_removing_neurons(
-                copy.deepcopy(model), dataloaders, copy.deepcopy(index_selected_neurons)
+                args,
+                copy.deepcopy(model),
+                dataloaders,
+                copy.deepcopy(index_selected_neurons),
             )
 
             accuracies.append(
@@ -501,11 +513,13 @@ def select_full_combination_thread(
     results = []  # combination, separating accuracy, removing accuracy
     for index, selected_neurons in enumerate(combinations):
         separate_accuracy, _ = get_accuracy_after_separating_neurons(
+            args,
             copy.deepcopy(model),
             dataloaders,
             selected_neurons,
         )
         remove_accuracy, _ = get_accuracy_after_removing_neurons(
+            args,
             copy.deepcopy(model),
             dataloaders,
             selected_neurons,

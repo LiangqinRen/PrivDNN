@@ -274,7 +274,7 @@ def get_TinyImageNet_dataloader(use_train_set_percent=100):
         "epoch": 256,
         "train": DataLoader(train_dataset, batch_size=128, shuffle=True),
         "validate": DataLoader(validate_dataset, batch_size=128, shuffle=True),
-        "test": DataLoader(test_dataset, batch_size=128, shuffle=False),
+        "test": DataLoader(test_dataset, batch_size=2500, shuffle=False),
     }
 
     return dataloaders

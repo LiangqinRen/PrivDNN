@@ -109,7 +109,9 @@ vector<variant<double, Ciphertext>> read_conv_bias(
         if (is_neuron_encrypted(encrypted_neurons, round, i)) {
             seal.cipher_.load(seal.context_, bias_instream);
             degrade_cipher_levels(
-                seal, seal.cipher_, 1 + (round - 1) * (dataset == "CIFAR10" ? 2 : 3));
+                seal,
+                seal.cipher_,
+                1 + (round - 1) * (dataset == "CIFAR10" || dataset == "TinyImageNet" ? 2 : 3));
             bias[i] = seal.cipher_;
         } else {
             double bias_value;
@@ -223,12 +225,14 @@ void thread_conv_worker(
                                     auto weight_cipher = get<Ciphertext>(weight[get_index(
                                         shape.conv_weight[round],
                                         {output_indexes[i][1], channel, a, b})]);
-
                                     seal.evaluator_.multiply_plain_inplace(
                                         weight_cipher, input_plain);
                                     seal.evaluator_.rescale_to_next_inplace(weight_cipher);
                                     degrade_cipher_levels(
-                                        seal, weight_cipher, dataset == "CIFAR10" ? 2 : 3);
+                                        seal,
+                                        weight_cipher,
+                                        (dataset == "CIFAR10" || dataset == "TinyImageNet" ? 2
+                                                                                           : 3));
                                     sum.scale() = weight_cipher.scale() = SCALE;
                                     seal.evaluator_.add_inplace(sum, weight_cipher);
                                 }
@@ -277,7 +281,10 @@ void thread_conv_worker(
                                         {output_indexes[i][1], channel, a, b})]);
 
                                     degrade_cipher_levels(
-                                        seal, weight_cipher, dataset == "CIFAR10" ? 2 : 3);
+                                        seal,
+                                        weight_cipher,
+                                        (dataset == "CIFAR10" || dataset == "TinyImageNet" ? 2
+                                                                                           : 3));
                                     seal.evaluator_.multiply_inplace(weight_cipher, input_cipher);
 
                                     seal.evaluator_.relinearize_inplace(
@@ -435,7 +442,6 @@ vector<variant<vector<double>, Ciphertext>> conv(
                     continue;
                 }
                 Ciphertext bias = get<Ciphertext>(conv_bias[i]);
-
                 vector<array<size_t, 4>> work_indexes;
                 for (size_t j = 0; j < output_shape[2]; ++j) {
                     for (size_t k = 0; k < output_shape[3]; ++k) {
@@ -579,10 +585,13 @@ vector<variant<vector<double>, Ciphertext>> recombine_input(
     return result;
 }
 
-void save_worker_result(string dataset, vector<variant<vector<double>, Ciphertext>> &input) {
+void save_worker_result(
+    string dataset,
+    vector<variant<vector<double>, Ciphertext>> &input,
+    int conv = 2) {
     // move all input elements!
-    const string result_path =
-        DATA_PATH + string("communication/") + dataset + string("_conv2_result");
+    const string result_path = DATA_PATH + string("communication/") + dataset +
+        (conv == 1 ? string("_conv1_result") : string("_conv2_result"));
 
     ofstream result_output_stream;
     result_output_stream.open(result_path, ios::out | ios::binary);
@@ -801,13 +810,16 @@ vector<Ciphertext> fc(SEALPACK &seal, const vector<Ciphertext> &input, size_t ro
 void worker(const char *dataset, int batch_size, double *input_data, mode work_mode = separate_) {
     SEALPACK seal(work_mode);
     auto shape = Shapes[string(dataset)];
-
     update_shape_size(shape, batch_size);
     auto encrypted_neurons = get_encrypted_neurons_list(dataset);
     cout << "Selected neurons of " << dataset << ": " << encrypted_neurons << endl;
     auto input = recombine_input(shape.conv_input[1], input_data);
     for (size_t round = 1; round <= shape.conv_input.size(); ++round) {
+        cout << __FILE__ << "|" << __LINE__ << "|";
+        print_current_time();
         auto conv_result = conv(dataset, seal, shape, round, input, encrypted_neurons, work_mode);
+        cout << __FILE__ << "|" << __LINE__ << "|";
+        print_current_time();
         if (round == 2) {
             if (work_mode == separate_ or work_mode == remove_) {
                 save_worker_result(dataset, conv_result);
@@ -835,9 +847,15 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
                 save_fc_result(dataset, fc3_output);
             }
         } else {
-            if (string(dataset) == string("CIFAR10")) {
+            if (string(dataset) == string("CIFAR10") || string(dataset) == string("TinyImageNet")) {
                 square_activate(dataset, seal, conv_result);
-                input = move(conv_result);
+
+                if (string(dataset) == string("TinyImageNet")) {
+                    input = conv_result;
+                    save_worker_result(dataset, conv_result, 1);
+                } else {
+                    input = move(conv_result);
+                }
             } else {
                 auto avg_pool_result = avg_pool(dataset, seal, shape, round, conv_result);
                 vector<variant<vector<double>, Ciphertext>>().swap(conv_result);

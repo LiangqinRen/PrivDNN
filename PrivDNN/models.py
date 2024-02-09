@@ -169,9 +169,13 @@ class SplitNet(nn.Module):
                     trained_data_list.extend(
                         torch.flatten(layer[0].layer.weight).tolist()
                     )
-                    trained_data_list.extend(
-                        torch.flatten(layer[0].layer.bias).tolist()
-                    )
+                    if dataset != "TinyImageNet":
+                        trained_data_list.extend(
+                            torch.flatten(layer[0].layer.bias).tolist()
+                        )
+                    else:
+                        zeros = [0 for i in range(len(layer[0].layer.weight))]
+                        trained_data_list.extend(zeros)
             elif dataset == "MNIST":
                 # fc weight needs to be transposed, but we don't do that here
                 trained_data_list.extend(torch.flatten(layer.weight).tolist())
@@ -1398,11 +1402,99 @@ class SplitTinyImageNet(SplitNet):
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         # x = torch.square(self.bn1(self._conv(self.conv1_layers, input)))
-        x = torch.square(self._conv(self.conv1_layers, input))
-        short_input = x
+        short_input = None
+        intermediate_output = None
+        if (
+            self.work_mode == WorkMode.normal
+            or self.work_mode == WorkMode.split
+            or self.work_mode == WorkMode.recover
+            or self.work_mode == WorkMode.attack_in
+            or self.work_mode == WorkMode.attack_out
+        ):
+            x = torch.square(self._conv(self.conv1_layers, input))
+            short_input = x
+            x = self._conv(self.conv2_layers, x)
+            intermediate_output = x
+        elif self.work_mode == WorkMode.cipher:
+            work_mode = int(  # 0 separate, 1 remove
+                0 if self.cpp_work_mode == CppWorkMode.separate else 1
+            )
 
-        x = self._conv(self.conv2_layers, x)
-        x = self.bn2(x)
+            client_library = ctypes.CDLL("../seal/output/lib/libclient.so")
+            server_library = ctypes.CDLL("../seal/output/lib/libserver.so")
+
+            cpp_is_file_complete = server_library.is_file_complete
+            cpp_is_file_complete.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+            ]
+            cpp_is_file_complete.restype = ctypes.c_bool
+
+            if not cpp_is_file_complete(
+                b"TinyImageNet",
+                work_mode,
+            ):
+                cpp_save_trained_data = server_library.save_trained_data
+                cpp_save_trained_data.argtypes = [
+                    ctypes.c_char_p,
+                    ctypes.POINTER(ctypes.c_double),
+                    ctypes.c_int,
+                ]
+                trained_data_pointer = self._get_trained_data_pointer("TinyImageNet")
+                cpp_save_trained_data(
+                    b"TinyImageNet",
+                    trained_data_pointer,
+                    work_mode,
+                )
+            cpp_worker = client_library.worker
+            cpp_worker.argtypes = [
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_double),
+                ctypes.c_int,
+            ]
+
+            input_list = torch.flatten(input).tolist()
+            input_pointer = (ctypes.c_double * len(input_list))(*input_list)
+            cpp_worker(b"TinyImageNet", input.shape[0], input_pointer, work_mode)
+
+            cpp_get_result = server_library.get_result
+            cpp_get_result.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+            cpp_get_result.restype = ctypes.POINTER(ctypes.c_double)
+
+            if (
+                self.cpp_work_mode == CppWorkMode.separate
+                or self.cpp_work_mode == CppWorkMode.remove
+            ):
+                output = cpp_get_result(
+                    b"TinyImageNet",
+                    input.shape[0],  # batch size
+                    work_mode,
+                )
+
+                short_input = [output[i] for i in range(input.shape[0] * 64 * 64 * 64)]
+                short_input = torch.reshape(
+                    torch.FloatTensor(short_input), [input.shape[0], 64, 64, 64]
+                ).cuda()
+
+                conv2_output = [
+                    output[i]
+                    for i in range(
+                        input.shape[0] * 64 * 64 * 64,
+                        input.shape[0] * 64 * 64 * 64 + input.shape[0] * 64 * 64 * 64,
+                    )
+                ]
+                conv2_output = torch.reshape(
+                    torch.FloatTensor(conv2_output), [input.shape[0], 64, 64, 64]
+                ).cuda()
+
+                intermediate_output = conv2_output
+
+        # x = torch.square(self._conv(self.conv1_layers, input))
+        # short_input = x
+
+        # x = self._conv(self.conv2_layers, x)
+        x = self.bn2(intermediate_output)
         x = F.relu(x)
         x = self.bn3(self.conv3_layers[0](x))
 

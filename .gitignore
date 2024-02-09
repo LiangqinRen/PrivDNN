@@ -19,6 +19,8 @@
 !/saved_models/GTSRB/.gitkeep
 /saved_models/CIFAR10/*
 !/saved_models/CIFAR10/.gitkeep
+/saved_models/TinyImageNet/*
+!/saved_models/TinyImageNet/.gitkeep
 
 /seal/data/
 /seal/output/

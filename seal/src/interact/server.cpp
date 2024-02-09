@@ -16,9 +16,21 @@ bool is_file_complete(char *dataset, mode work_mode) {
     hash<json> encrypted_list_hash;
     auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
 
-    const string MNIST_path = DATA_PATH + string(dataset) + string("/");
+    const string path = DATA_PATH + string(dataset) + string("/");
     vector<string> file_names;
     if (work_mode == separate_ || work_mode == remove_) {
+        /*if (string(dataset) == string("TinyImageNet")) {
+            file_names = {
+                string("_conv1_weight"),
+                string("_conv2_weight"),
+            };
+        } else {
+            file_names = {
+                string("_conv1_weight"),
+                string("_conv1_bias"),
+                string("_conv2_weight"),
+                string("_conv2_bias")};
+        }*/
         file_names = {
             string("_conv1_weight"),
             string("_conv1_bias"),
@@ -39,7 +51,7 @@ bool is_file_complete(char *dataset, mode work_mode) {
     }
 
     for (size_t i = 0; i < file_names.size(); ++i) {
-        if (!is_file_exist(MNIST_path + files_prefix + file_names[i])) {
+        if (!is_file_exist(path + files_prefix + file_names[i])) {
             return false;
         }
     }
@@ -121,7 +133,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
     conv1_bias_outstream.close();
 
-    // conv2_weight
+    //  conv2_weight
     ofstream conv2_weight_outstream;
     string conv2_weight_path = dataset_path + files_prefix + string("_conv2_weight");
     if (work_mode == full_) {
@@ -152,7 +164,7 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
     }
     conv2_weight_outstream.close();
 
-    // conv2_bias
+    //  conv2_bias
     ofstream conv2_bias_outstream;
     string conv2_bias_path = dataset_path + files_prefix + string("_conv2_bias");
     if (work_mode == full_) {
@@ -289,10 +301,11 @@ vector<double> read_conv_result(
     SEALPACK &seal,
     array<size_t, 4> output_shape,
     size_t output_size,
-    mode work_mode) {
+    mode work_mode,
+    int conv = 2) {
 
-    const string result_path =
-        DATA_PATH + string("communication/") + dataset + string("_conv2_result");
+    const string result_path = DATA_PATH + string("communication/") + dataset +
+        (conv == 1 ? string("_conv1_result") : string("_conv2_result"));
 
     ifstream result_stream;
     result_stream.open(result_path, ios::in | ios::binary);
@@ -366,11 +379,30 @@ double *get_result(char *dataset, int batch_size, mode work_mode = separate_) {
         final_result = read_fc_result(seal, array<size_t, 2>{(size_t)batch_size, 10});
     }
 
-    double *output = new double[output_size];
-    for (size_t i = 0; i < output_size; ++i) {
-        output[i] = final_result[i];
-    }
+    if (dataset == string("TinyImageNet")) {
+        size_t tiny_imagenet_middle_size = batch_size * shapes.conv_output[1][1] *
+            shapes.conv_output[1][2] * shapes.conv_output[1][3];
+        vector<double> middle_result =
+            read_conv_result(dataset, seal, shapes.conv_output[2], output_size, work_mode, 1);
 
-    return output;
+        double *output = new double[tiny_imagenet_middle_size + output_size];
+        size_t i = 0;
+        for (; i < tiny_imagenet_middle_size; ++i) {
+            output[i] = middle_result[i];
+        }
+
+        for (size_t j = 0; j < output_size; ++i, ++j) {
+            output[i] = final_result[j];
+        }
+
+        return output;
+    } else {
+        double *output = new double[output_size];
+        for (size_t i = 0; i < output_size; ++i) {
+            output[i] = final_result[i];
+        }
+
+        return output;
+    }
 }
 }
