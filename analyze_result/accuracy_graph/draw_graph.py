@@ -73,7 +73,6 @@ def draw_ranking_accuracy(point_count, dataset, data_source):
     plt.plot(ranking, remove_accuracy, linestyle="solid", color="black", label="A$_r$")
 
     plt.legend(loc="lower left")
-    plt.title(dataset)
 
     plt.savefig(f"{dataset}_accuracy.png", dpi=600)
     plt.close()
@@ -157,8 +156,6 @@ def draw_accuracy_distribution(dataset, data_source):
         arrowprops={"arrowstyle": "->"},
         fontsize=10,
     )
-
-    main_graph.set_title(dataset)
 
     # show colormap
     left, bottom, width, height = 0.125, 0.825, 0.2, 0.05
