@@ -15,6 +15,7 @@ def use_partial_dataloaders(dataloaders, percent=None, count=None, mode=None):
     train_dataset = (
         dataloaders["validate"].dataset if mode else dataloaders["train"].dataset
     )
+
     partial_train_dataset_count = 0
     if percent:
         partial_train_dataset_count = int(len(train_dataset) * percent / 100)
@@ -271,7 +272,7 @@ def get_TinyImageNet_dataloader(use_train_set_percent=100):
 
     dataloaders = {
         "name": "TinyImageNet",
-        "epoch": 256,
+        "epoch": 128,
         "train": DataLoader(train_dataset, batch_size=128, shuffle=True),
         "validate": DataLoader(validate_dataset, batch_size=128, shuffle=True),
         "test": DataLoader(test_dataset, batch_size=2500, shuffle=False),

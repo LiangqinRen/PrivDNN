@@ -109,9 +109,7 @@ vector<variant<double, Ciphertext>> read_conv_bias(
         if (is_neuron_encrypted(encrypted_neurons, round, i)) {
             seal.cipher_.load(seal.context_, bias_instream);
             degrade_cipher_levels(
-                seal,
-                seal.cipher_,
-                1 + (round - 1) * (dataset == "CIFAR10" || dataset == "TinyImageNet" ? 2 : 3));
+                seal, seal.cipher_, 1 + (round - 1) * (dataset == "CIFAR10" ? 2 : 3));
             bias[i] = seal.cipher_;
         } else {
             double bias_value;
@@ -229,10 +227,7 @@ void thread_conv_worker(
                                         weight_cipher, input_plain);
                                     seal.evaluator_.rescale_to_next_inplace(weight_cipher);
                                     degrade_cipher_levels(
-                                        seal,
-                                        weight_cipher,
-                                        (dataset == "CIFAR10" || dataset == "TinyImageNet" ? 2
-                                                                                           : 3));
+                                        seal, weight_cipher, (dataset == "CIFAR10" ? 2 : 3));
                                     sum.scale() = weight_cipher.scale() = SCALE;
                                     seal.evaluator_.add_inplace(sum, weight_cipher);
                                 }
@@ -281,10 +276,7 @@ void thread_conv_worker(
                                         {output_indexes[i][1], channel, a, b})]);
 
                                     degrade_cipher_levels(
-                                        seal,
-                                        weight_cipher,
-                                        (dataset == "CIFAR10" || dataset == "TinyImageNet" ? 2
-                                                                                           : 3));
+                                        seal, weight_cipher, (dataset == "CIFAR10" ? 2 : 3));
                                     seal.evaluator_.multiply_inplace(weight_cipher, input_cipher);
 
                                     seal.evaluator_.relinearize_inplace(
@@ -610,6 +602,73 @@ void save_worker_result(
     result_output_stream.close();
 }
 
+vector<variant<double, Ciphertext>> read_bn_paras(
+    string dataset,
+    SEALPACK &seal,
+    int round,
+    json encrypted_neurons,
+    const string &file_name) {
+    auto shape = Shapes[string(dataset)];
+    hash<json> encrypted_list_hash;
+    auto files_prefix = to_string(encrypted_list_hash(encrypted_neurons));
+
+    string path = move(
+        DATA_PATH + string(dataset) + string("/") + files_prefix + string("_bn") +
+        to_string(round) + string("_") + file_name);
+
+    ifstream instream;
+    instream.open(path, ios::in | ios::binary);
+    vector<variant<double, Ciphertext>> bias(shape.conv_bias[round]);
+    for (size_t i = 0; i < bias.size(); ++i) {
+        if (is_neuron_encrypted(encrypted_neurons, round, i)) {
+            seal.cipher_.load(seal.context_, instream);
+            degrade_cipher_levels(seal, seal.cipher_, file_name == string("weight") ? 1 : 2);
+            bias[i] = seal.cipher_;
+        } else {
+            double bias_value;
+            instream.read(reinterpret_cast<char *>(&bias_value), sizeof(bias_value));
+            bias[i] = bias_value;
+        }
+    }
+
+    instream.close();
+    return bias;
+}
+
+void batch_normal(
+    string dataset,
+    SEALPACK &seal,
+    json encrypted_neurons,
+    vector<variant<vector<double>, Ciphertext>> &input) {
+    auto weight = read_bn_paras(dataset, seal, 1, encrypted_neurons, string("weight"));
+    auto bias = read_bn_paras(dataset, seal, 1, encrypted_neurons, string("bias"));
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (get_if<Ciphertext>(&input[i]) != nullptr) {
+            Ciphertext input_cipher = get<Ciphertext>(input[i]);
+            Ciphertext w = get<Ciphertext>(weight[i / (64 * 64)]);
+            Ciphertext b = get<Ciphertext>(bias[i / (64 * 64)]);
+
+            seal.evaluator_.multiply_inplace(w, input_cipher);
+            seal.evaluator_.relinearize_inplace(w, seal.relin_keys_);
+            seal.evaluator_.rescale_to_next_inplace(w);
+
+            b.scale() = w.scale() = SCALE;
+            seal.evaluator_.add_inplace(b, w);
+            input[i] = b;
+        } else {
+            vector<double> values = get<vector<double>>(input[i]);
+            double w = get<double>(weight[i / (64 * 64)]);
+            double b = get<double>(bias[i / (64 * 64)]);
+            for (size_t j = 0; j < values.size(); ++j) {
+                values[j] = values[j] * w + b;
+            }
+
+            input[i] = values;
+        }
+    }
+}
+
 void square_activate(
     string dataset,
     SEALPACK &seal,
@@ -815,11 +874,7 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
     cout << "Selected neurons of " << dataset << ": " << encrypted_neurons << endl;
     auto input = recombine_input(shape.conv_input[1], input_data);
     for (size_t round = 1; round <= shape.conv_input.size(); ++round) {
-        cout << __FILE__ << "|" << __LINE__ << "|";
-        print_current_time();
         auto conv_result = conv(dataset, seal, shape, round, input, encrypted_neurons, work_mode);
-        cout << __FILE__ << "|" << __LINE__ << "|";
-        print_current_time();
         if (round == 2) {
             if (work_mode == separate_ or work_mode == remove_) {
                 save_worker_result(dataset, conv_result);
@@ -848,12 +903,13 @@ void worker(const char *dataset, int batch_size, double *input_data, mode work_m
             }
         } else {
             if (string(dataset) == string("CIFAR10") || string(dataset) == string("TinyImageNet")) {
-                square_activate(dataset, seal, conv_result);
-
                 if (string(dataset) == string("TinyImageNet")) {
+                    batch_normal(dataset, seal, encrypted_neurons, conv_result);
+                    square_activate(dataset, seal, conv_result);
                     input = conv_result;
                     save_worker_result(dataset, conv_result, 1);
                 } else {
+                    square_activate(dataset, seal, conv_result);
                     input = move(conv_result);
                 }
             } else {

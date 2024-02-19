@@ -2,6 +2,7 @@ import copy
 import enum
 import torch
 import ctypes
+import math
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -180,6 +181,26 @@ class SplitNet(nn.Module):
                 # fc weight needs to be transposed, but we don't do that here
                 trained_data_list.extend(torch.flatten(layer.weight).tolist())
                 trained_data_list.extend(torch.flatten(layer.bias).tolist())
+            elif dataset == "TinyImageNet":
+                if isinstance(layer, nn.BatchNorm2d):
+                    # we only need BN1!
+                    fake_w = []
+                    fake_b = []
+                    for i in range(layer.num_features):
+                        fake_w.append(
+                            layer.weight[i] / pow(layer.running_var[i] + 1e-5, 0.5)
+                        )
+                        fake_b.append(
+                            layer.bias[i]
+                            - layer.running_mean[i]
+                            * layer.weight[i]
+                            / pow(layer.running_var[i] + 1e-5, 0.5)
+                        )
+
+                    trained_data_list.extend(fake_w)
+                    trained_data_list.extend(fake_b)
+
+                    break
 
         trained_data_pointer = (ctypes.c_double * len(trained_data_list))(
             *trained_data_list
@@ -1401,7 +1422,7 @@ class SplitTinyImageNet(SplitNet):
         return nn.Sequential(*layers)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        # x = torch.square(self.bn1(self._conv(self.conv1_layers, input)))
+
         short_input = None
         intermediate_output = None
         if (
@@ -1411,7 +1432,9 @@ class SplitTinyImageNet(SplitNet):
             or self.work_mode == WorkMode.attack_in
             or self.work_mode == WorkMode.attack_out
         ):
-            x = torch.square(self._conv(self.conv1_layers, input))
+            # x = torch.square(self._conv(self.conv1_layers, input))
+            x = torch.square(self.bn1(self._conv(self.conv1_layers, input)))
+
             short_input = x
             x = self._conv(self.conv2_layers, x)
             intermediate_output = x
@@ -1446,6 +1469,7 @@ class SplitTinyImageNet(SplitNet):
                     trained_data_pointer,
                     work_mode,
                 )
+
             cpp_worker = client_library.worker
             cpp_worker.argtypes = [
                 ctypes.c_char_p,
@@ -1490,17 +1514,12 @@ class SplitTinyImageNet(SplitNet):
 
                 intermediate_output = conv2_output
 
-        # x = torch.square(self._conv(self.conv1_layers, input))
-        # short_input = x
-
-        # x = self._conv(self.conv2_layers, x)
         x = self.bn2(intermediate_output)
         x = F.relu(x)
         x = self.bn3(self.conv3_layers[0](x))
 
         x += self.shortcut(short_input)
 
-        # x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)

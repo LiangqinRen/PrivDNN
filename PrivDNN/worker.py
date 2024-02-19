@@ -69,7 +69,7 @@ def get_model(logger, dataloaders, model_path):
         "CIFAR10": models.SplitCIFAR10Net(),
         "TinyImageNet": models.SplitTinyImageNet(),
     }
-    model = model_list[dataloaders["name"]]
+    model = model_list[dataloaders["name"]].cuda()
     model.set_layers_on_cuda()
     logger.info("use the new model")
 
@@ -128,7 +128,7 @@ def closing_test(args, logger, model, dataloaders, selected_neurons, file_name=N
         separate_accuracy,
         separate_label_correct_count,
     ) = get_accuracy_after_separating_neurons(
-        args,copy.deepcopy(model), dataloaders, selected_neurons
+        args, copy.deepcopy(model), dataloaders, selected_neurons
     )
     remove_accuracy, remove_label_correct_count = get_accuracy_after_removing_neurons(
         args, copy.deepcopy(model), dataloaders, selected_neurons
@@ -330,11 +330,8 @@ def train_and_save_model(args, logger, dataloaders, model_path):
             parameters.extend(list(layers.parameters()))
         else:
             if isinstance(layers, list):
-                # continue
                 parameters.extend(list(layers[0].parameters()))
             elif isinstance(layers, Sequential):
-                # print(type(layers))
-                # continue
                 parameters.extend(list(layers.parameters()))
                 """for layer in layers:
                     if isinstance(layers, nn.Conv2d) or isinstance(
@@ -1163,6 +1160,7 @@ def recover_model(args, logger, model, dataloaders, model_path):
             else f"recover_selected_neurons.json"
         ),
     )
+
     model.selected_neurons = selected_neurons
     logger.info(f"selected_neurons: {selected_neurons}")
     logger.info("original accuracy")
@@ -1208,7 +1206,7 @@ def recover_model(args, logger, model, dataloaders, model_path):
         recover_model_path,
     )
 
-    logger.info("after recovering the model(ReLU)")
+    logger.info("after recovering the model")
     test_model(args, logger, model, dataloaders)
 
 

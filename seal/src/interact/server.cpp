@@ -19,18 +19,6 @@ bool is_file_complete(char *dataset, mode work_mode) {
     const string path = DATA_PATH + string(dataset) + string("/");
     vector<string> file_names;
     if (work_mode == separate_ || work_mode == remove_) {
-        /*if (string(dataset) == string("TinyImageNet")) {
-            file_names = {
-                string("_conv1_weight"),
-                string("_conv2_weight"),
-            };
-        } else {
-            file_names = {
-                string("_conv1_weight"),
-                string("_conv1_bias"),
-                string("_conv2_weight"),
-                string("_conv2_bias")};
-        }*/
         file_names = {
             string("_conv1_weight"),
             string("_conv1_bias"),
@@ -49,6 +37,9 @@ bool is_file_complete(char *dataset, mode work_mode) {
             string("_fc3_weight_full"),
             string("_fc3_bias_full")};
     }
+
+    file_names.emplace_back("_bn1_weight");
+    file_names.emplace_back("_bn1_bias");
 
     for (size_t i = 0; i < file_names.size(); ++i) {
         if (!is_file_exist(path + files_prefix + file_names[i])) {
@@ -187,6 +178,54 @@ void save_trained_data(char *dataset, double *trained_data, mode work_mode) {
         ++trained_data_index;
     }
     conv2_bias_outstream.close();
+
+    // bn1_weight
+    ofstream bn1_weight_outstream;
+    string bn1_weight_path = dataset_path + files_prefix + string("_bn1_weight");
+    if (work_mode == full_) {
+        bn1_weight_path += string("_full");
+    }
+    bn1_weight_outstream.open(bn1_weight_path, ios::out | ios::binary);
+
+    auto bn1_weight_shape = shape.conv_bias[1];
+    for (size_t i = 0; i < bn1_weight_shape; ++i) {
+        if (is_neuron_encrypted(encryped_neurons, 1, i)) {
+            encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
+            encryptor.encrypt_symmetric(temp_plain, temp_cipher);
+            temp_cipher.save(bn1_weight_outstream);
+        } else {
+            double temp_number = trained_data[trained_data_index];
+            bn1_weight_outstream.write(
+                reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
+        }
+
+        ++trained_data_index;
+    }
+    bn1_weight_outstream.close();
+
+    // bn1_bias
+    ofstream bn1_bias_outstream;
+    string bn1_bias_path = dataset_path + files_prefix + string("_bn1_bias");
+    if (work_mode == full_) {
+        bn1_bias_path += string("_full");
+    }
+    bn1_bias_outstream.open(bn1_bias_path, ios::out | ios::binary);
+
+    auto bn1_bias_shape = shape.conv_bias[1];
+    for (size_t i = 0; i < bn1_bias_shape; ++i) {
+        if (is_neuron_encrypted(encryped_neurons, 1, i)) {
+            encoder.encode(trained_data[trained_data_index], SCALE, temp_plain);
+            encryptor.encrypt_symmetric(temp_plain, temp_cipher);
+            temp_cipher.save(bn1_bias_outstream);
+        } else {
+            double temp_number = trained_data[trained_data_index];
+            bn1_bias_outstream.write(
+                reinterpret_cast<const char *>(&temp_number), sizeof(temp_number));
+        }
+
+        ++trained_data_index;
+    }
+    bn1_bias_outstream.close();
 
     if (work_mode == full_) {
         // fc1_weight
