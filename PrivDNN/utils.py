@@ -182,3 +182,12 @@ def get_model_path(args, dataloaders, percent=100):
     model_path = f"../saved_models/{dataloaders['name']}/{dataloaders['name']}_{dataloaders['epoch']}_{train_batch_size}_{percent}.pth"
 
     return model_path
+
+
+def show_parameters(args, logger) -> None:
+    content = "Parameter configuration:\n"
+
+    for arg in vars(args).keys():
+        content += f"\t{arg}: {getattr(args, arg)}\n"
+
+    logger.info(content)
