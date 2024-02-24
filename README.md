@@ -9,6 +9,8 @@ Abstract: In the past decade, we have witnessed an exponential growth of deep le
 ---
 
 ### Contents
+- [PrivDNN: A Secure Multi-Party Computation Framework for Deep Learning using Partial DNN Encryption](#privdnn-a-secure-multi-party-computation-framework-for-deep-learning-using-partial-dnn-encryption)
+- [Contents](#contents)
 - [Getting Started](#getting-started)
   - [Pretrained Models](#pretrained-models)
   - [PyTorch Environment](#pytorch-environment)
@@ -31,7 +33,7 @@ We implement PrivDNN using Python 3.10.13, PyTorch 2.1.0, and CUDA 12.1. All the
 
 PrivDNN uses five datasets and corresponding models, i.e., MNIST (LeNet5), EMNIST (LeNet5), GTSRB (AlexNet), CIFAR-10 (VGG16) and Tiny ImageNet (ResNet18). We train all models from scratch and execute experiments based on the well-trained models. The models we use can be found at [Google Drive](https://drive.google.com/drive/folders/15vXR91hg6reWBr-DBrMjz__W5c54w8Nm?usp=sharing).
 
-The model should be put into the corresponding folder as following.
+The model should be put into the corresponding folder as follows.
 
 | Models Name                                     | Folder                              |
 |-------------------------------------------------|-----------------------------------|
@@ -63,7 +65,7 @@ We briefly introduce those functions as followings. For every function, there ar
 
 #### train
 
-*train* function is used to train the model from scratch. We have offered the pre-trained models used for our experiments, so you can use our models to repeat the experiments. If you would like to train the model, such as MNIST (LeNet5) from scratch, you can use the following commands.
+The*train* function is used to train the model from scratch. We have offered the pre-trained models used for our experiments, so you can use our models to repeat the experiments. If you would like to train the model, such as MNIST (LeNet5) from scratch, you can use the following commands.
 
 ```
 bash run.sh mnist train
@@ -71,7 +73,7 @@ bash run.sh mnist train
 
 #### test
 
-*test* function is used to test the model accuracy. During the test, we use the top-5-accuracy for Tiny ImageNet and top-1-accuracy for others.
+The*test* function is used to test the model's accuracy. During the test, we use the top-5-accuracy for Tiny ImageNet and top-1-accuracy for others.
 
 *test* function's results are used in Table 1.
 
@@ -81,9 +83,9 @@ bash run.sh mnist test
 
 #### select
 
-*select* is the most important function in PrivDNN. PrivDNN offers four kinds of algorithms to select critical neurons, i.e., random selection, greedy selection, pruning selection and pruning+greedy selection. All algorithms are listed in **PrivDNN/PrivDNN/main.py**, and you can config which algorithm to use here. For datasets MNIST and EMNIST, we select exact number of neurons in first two layers, for GTSRB, CIFAR10 and Tiny ImageNet, we select a percentage of neurons in first two layers. We also explain parameters in the script.
+*select* is the most important function in PrivDNN. PrivDNN offers four kinds of algorithms to select critical neurons, i.e., random selection, greedy selection, pruning selection, and pruning+greedy selection. All algorithms are listed in **PrivDNN/PrivDNN/main.py**, and you can configure which algorithm to use here. For datasets MNIST and EMNIST, we select an exact number of neurons in the first two layers; for GTSRB, CIFAR10, and Tiny ImageNet, we select a percentage of neurons in the first two layers. We also explain the parameters in the script.
 
-*select* function's results are used in Table 2, 3, 4, 5 and Figure 4, 7.
+*select* function's results are used in Tables 2, 3, 4, 5 and Figures 4, 7.
 
 ```
 bash run.sh mnist select
@@ -91,7 +93,7 @@ bash run.sh mnist select
 
 #### recover
 
-*recover* function recovers the model with selected neurons or train the model from scratch.
+*recover* function recovers the model with selected neurons or trains the model from scratch. PrivDNN will use the file **PrivDNN/saved_models/[dataset]/recover_selected_neurons.json** as the selected neurons.
 
 *recover* function's results are used in Table 7 and Figure 7.
 
@@ -101,9 +103,16 @@ bash run.sh mnist recover
 
 #### inference
 
-*inference* function uses the C++ SEAL library to execute the cipher domain inference. PrivDNN will automatically use the file **PrivDNN/saved_models/[dataset]/inference_encrypted_neurons.json** as the selected neurons. The running time of *inference* function highly depends on the dataset and selected neurons count. During this process, it may take up all CPU cores, generate large cipher files and consume lots of memory (virtual memory). To test the function, you can inference the MNIST dataset with selected neurons of {"1": [0], "2": [0]}, which should finish in five minutes.
+*inference* function uses the C++ SEAL library to execute the cipher domain inference. PrivDNN will use the file **PrivDNN/saved_models/[dataset]/inference_encrypted_neurons.json** as the selected neurons. The running time of *inference* function highly depends on the dataset and selected neuron count. During this process, it may take up all CPU cores, generate large cipher files, and consume lots of memory (virtual memory). To test the function, you can infer the MNIST dataset with selected neurons of {"1": [0], "2": [0]}, which should finish in five minutes.
 
-*inference* function's results are used in Figure 5, 7.
+To execute the inference experiments, you need to compile the C++ codes to generate related libs.
+```
+cd seal/src/interact  
+mkdid build && cd build  
+cmake .. && make -j
+```
+
+*inference* function's results are used in Figures 5 and 7.
 
 ```
 bash run.sh mnist inference
@@ -115,10 +124,10 @@ bash run.sh mnist inference
 bash run.sh clean
 ```
 
-*clean* function function deletes the generated cipher parameters. PrivDNN will check if the file exists. If it exists, it will pass the generating process and use it. Otherwise, it will generate required cipher parameters automatically. If you change the SEAL parameters, you must compile and clean encrypted model data to generate new data.
+*clean* function function deletes the generated cipher parameters. PrivDNN will check if the file exists. If it exists, it will pass the generating process and use it. Otherwise, it will generate the required cipher parameters automatically. If you change the SEAL parameters, you must compile and clean encrypted model data to create new data.
 
 #### others
 
-We have some python programs in **PrivDNN/analyze_result**, to statistic the results we got from previous experiments. The results of those programs are used in Table 2, 3 and Figure 5, 7.
+We have some Python programs in **PrivDNN/analyze_result** to statistic the results from previous experiments. The results of those programs are used in Tables 2, 3 and Figures 5, 7.
 
 ### Citation
