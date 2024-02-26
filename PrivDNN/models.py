@@ -156,7 +156,7 @@ class SplitNet(nn.Module):
                 layer[i].layer.weight = torch.nn.Parameter(
                     torch.reshape(layer[0].layer.weight[i - 1], weight_shape)
                 )
-                if layer[0].layer.bias:
+                if layer[0].layer.bias is not None:
                     layer[i].layer.bias = torch.nn.Parameter(
                         torch.reshape(layer[0].layer.bias[i - 1], [1])
                     )

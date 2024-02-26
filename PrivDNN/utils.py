@@ -6,7 +6,7 @@ import argparse
 import enum
 
 
-class ModelWorkMode(enum.Enum):
+class WorkMode(enum.Enum):
     train = 1
     test = 2
     select_subset = 3
@@ -82,10 +82,16 @@ def get_argparser():
         help="log level",
     )
     parser.add_argument(
-        "--model_work_mode",
+        "--work_mode",
         type=int,
         default=None,
         help="work mode of the model",
+    )
+    parser.add_argument(
+        "--sub_work_mode",
+        type=int,
+        default=None,
+        help="sub work mode of the model",
     )
     parser.add_argument(
         "--top_k_accuracy",
@@ -172,7 +178,7 @@ def get_argparser():
     )
 
     args = parser.parse_args()
-    args.model_work_mode = ModelWorkMode(args.model_work_mode)
+    args.work_mode = WorkMode(args.work_mode)
     return args
 
 

@@ -23,21 +23,17 @@ if __name__ == "__main__":
 
     dataloaders = dataloaders_selection[args.dataset]()
     model_path = utils.get_model_path(args, dataloaders)
-    if args.model_work_mode == utils.ModelWorkMode.train:
-        if args.train_dataset_percent == 100:
-            worker.train_and_save_model(args, logger, dataloaders, model_path)
-        else:
-            worker.train_and_save_percent_dataset_model(
-                args, logger, dataloaders, [1, args.train_dataset_percent, 1]
-            )
-    elif args.model_work_mode == utils.ModelWorkMode.test:
+    if args.work_mode == utils.WorkMode.train:
+        worker.train_and_save_model(args, logger, dataloaders, model_path)
+    elif args.work_mode == utils.WorkMode.test:
         trained_model = worker.load_trained_model(model_path)
-        if args.selected_neurons_file is None:
-            layers = trained_model.get_layers_list()
+        if args.sub_work_mode == 0:
             worker.test_model(args, logger, trained_model, dataloaders)
-        else:
+        elif args.sub_work_mode == 1:
             worker.test_separated_model(args, logger, trained_model, dataloaders)
-    elif args.model_work_mode == utils.ModelWorkMode.select_subset:
+        else:
+            raise Exception("Unknown sub_work_mode")
+    elif args.work_mode == utils.WorkMode.select_subset:
         trained_model = worker.load_trained_model(model_path)
 
         # worker.select_neurons_v1(args, logger, trained_model, dataloaders)
@@ -60,7 +56,7 @@ if __name__ == "__main__":
         # worker.select_neurons_v4(args, logger, trained_model, dataloaders, 2)
 
         # worker.select_full_combination(args, logger, trained_model, dataloaders)
-    elif args.model_work_mode == utils.ModelWorkMode.recover:
+    elif args.work_mode == utils.WorkMode.recover:
         trained_model = worker.load_trained_model(model_path)
         worker.recover_model(args, logger, trained_model, dataloaders, model_path)
         # worker.train_from_scratch(args, logger, dataloaders)
@@ -69,7 +65,7 @@ if __name__ == "__main__":
         #    args, logger, trained_model, dataloaders, "attack.png"
         # )
         # worker.defense_weight_stealing(args, logger, trained_model, dataloaders)
-    elif args.model_work_mode == utils.ModelWorkMode.fhe_inference:
+    elif args.work_mode == utils.WorkMode.fhe_inference:
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
 
@@ -88,9 +84,9 @@ if __name__ == "__main__":
         trained_model.cpp_work_mode = models.CppWorkMode.full
         logger.info("SEAL full inference:")
         worker.test_model(args, logger, trained_model, dataloaders)"""
-    elif args.model_work_mode == utils.ModelWorkMode.something:
+    elif args.work_mode == utils.WorkMode.something:
         trained_model = worker.load_trained_model(model_path)
     else:
-        raise Exception("Unknown model_work_mode")
+        raise Exception("Unknown work_mode")
 
     logger.info(f"PrivDNN costs {time.time() - start_time:.3f} seconds")

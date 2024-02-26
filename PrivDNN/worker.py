@@ -300,24 +300,28 @@ def train_model(args, logger, model, dataloaders, parameters, model_path=None):
                 )
 
         if model_path and best_model:
-            if args.model_work_mode == utils.ModelWorkMode.train:
+            if args.work_mode == utils.WorkMode.train:
                 best_model.copy_parameters_to_split_model()
 
-            if args.model_work_mode == utils.ModelWorkMode.recover:
+            if args.work_mode == utils.WorkMode.recover:
                 save_model(model, model_path)
             else:
                 save_model(best_model, model_path)
 
         # get more data, partial label, more data, test
-    if args.model_work_mode != utils.ModelWorkMode.recover:
+    if args.work_mode != utils.WorkMode.recover:
         model = best_model
 
 
 def train_and_save_model(args, logger, dataloaders, model_path):
     timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
 
-    model = get_model(logger, dataloaders, model_path)
-    logger.info("train the model")
+    percent_dataloaders = copy.deepcopy(dataloaders)
+    data.use_partial_dataloaders(
+        percent_dataloaders, percent=args.train_dataset_percent
+    )
+
+    model = get_model(logger, percent_dataloaders, model_path)
 
     layers_list = model.get_layers_list(include_fc_layers=True)
     parameters = []
@@ -326,60 +330,21 @@ def train_and_save_model(args, logger, dataloaders, model_path):
             isinstance(layers, nn.Conv2d)
             or isinstance(layers, nn.Linear)
             or isinstance(layers, nn.BatchNorm2d)
+            or isinstance(layers, Sequential)
         ):
             parameters.extend(list(layers.parameters()))
         else:
             if isinstance(layers, list):
                 parameters.extend(list(layers[0].parameters()))
-            elif isinstance(layers, Sequential):
-                parameters.extend(list(layers.parameters()))
-                """for layer in layers:
-                    if isinstance(layers, nn.Conv2d) or isinstance(
-                        layers, nn.BatchNorm2d
-                    ):
-                        parameters.extend(list(layer.parameters()))
-                    else:
-                        print(type(layer))"""
-    # print(parameters)
-    # quit()
-    """parameters = []
+
+    parameters = []
     for layers in layers_list:
         if isinstance(layers, nn.Linear) or isinstance(layers, nn.BatchNorm2d):
             parameters.extend(list(layers.parameters()))
         else:
-            parameters.extend(list(layers[0].parameters()))"""
+            parameters.extend(list(layers[0].parameters()))
 
-    train_model(args, logger, model, dataloaders, parameters, model_path)
-
-
-def train_and_save_percent_dataset_model(args, logger, dataloaders, percent_range):
-    timer = utils.Timer(inspect.currentframe().f_code.co_name, logger)
-
-    accuracies = []
-    for percent in range(
-        percent_range[0], percent_range[1] + percent_range[2], percent_range[2]
-    ):
-        logger.info(f"train the model with {percent}% data")
-
-        percent_dataloaders = copy.deepcopy(dataloaders)
-        data.use_partial_dataloaders(percent_dataloaders, percent=percent)
-
-        percent_model_path = utils.get_model_path(args, percent_dataloaders, percent)
-        train_and_save_model(args, logger, percent_dataloaders, percent_model_path)
-        trained_model = load_trained_model(percent_model_path)
-
-        _, _, accuracy, _ = get_model_accuracy(
-            trained_model, percent_dataloaders["test"], args.top_k_accuracy
-        )
-        accuracies.append(accuracy)
-        logger.info(
-            f"[{len(percent_dataloaders['train'].dataset)}, {percent}%]Accuracy: {accuracy}%"
-        )
-        quit()
-
-    logger.info(
-        f"{percent_range[0]}% - {percent_range[1]}% with interval {percent_range[2]}% train dataset get accuracies: {accuracies}"
-    )
+    train_model(args, logger, model, percent_dataloaders, parameters, model_path)
 
 
 def get_accuracy_after_removing_neurons(args, model, dataloaders, selected_neurons):
