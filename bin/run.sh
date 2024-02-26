@@ -21,11 +21,11 @@ elif [[ $workmode == 'test' ]]
 then
     if [[ $submode == '' ||  $submode == '0' ]]
     then
-        # test the normal model performance
+        # test the model accuracy
         python ../PrivDNN/main.py --dataset $dataset --work_mode 2 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]}
     elif [[ $submode == '1' ]]
     then
-        # test the model performance with selected filters
+        # test the model accuracy with selected filters
         python ../PrivDNN/main.py --dataset $dataset --work_mode 2 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --selected_neurons_file "selected_neurons.json" --accuracy_base ${accuracy[$dataset]} 
     fi
 elif [[ $workmode == 'select' ]]

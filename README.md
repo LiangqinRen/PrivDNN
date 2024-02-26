@@ -66,14 +66,14 @@ Please refer to [Microsft SEAL](https://github.com/microsoft/SEAL/tree/main) for
 
 ### Usage
 
-PrivDNN offers a script **PrivDNN/bin/run.sh** to facilitate the usage. The script mainly includes six functions: train, test, select, recover, inference and clean. PrivDNN will record all experiments log at the **log** folder named with the running time. The script accepts dataset and function (sub-function) as parameters, and the dataset is not case sensitive.
+PrivDNN offers a script *PrivDNN/bin/run.sh* to facilitate the usage. The script mainly includes six functions: train, test, select, recover, inference and clean. PrivDNN will record all experiments log at the *log* folder named with the running time. The script accepts dataset and function (sub-function) as parameters, and the dataset is not case sensitive.
 
 We briefly introduce those functions as followings. For every function, there are detailed parameters explanation in the script. 
 
 #### train
 
 The *train* function is used to train the model from scratch. We have offered the pre-trained models used for our experiments, so readers can use our models to execute the experiments.  
-If readers would like to train the model, such as MNIST (LeNet5) from scratch, readers can use the following commands. But the reader should backup the pre-trained model before training because PrivDNN will automatically continue the training with the default model file name **MNIST_128_128_100.pth."
+If readers would like to train the model, such as MNIST (LeNet5) from scratch, readers can use the following commands. But the reader should backup the pre-trained model before training because PrivDNN will automatically continue the training with the default model file name *MNIST_128_128_100.pth*.
 
 ```
 bash run.sh mnist train
@@ -81,17 +81,25 @@ bash run.sh mnist train
 
 #### test
 
-The *test* function is used to test the model original accuracy, i.e., $A_o$ in the paper. During the test, we use the top-5-accuracy for Tiny ImageNet and top-1-accuracy for others.
+The *test* function is used to test the model accuracy. During the test, we use the top-5-accuracy for Tiny ImageNet and top-1-accuracy for others.
+
+The *test* function has 2 modes. The first one tests the model original accuracy, i.e., $A_o$ in the paper.
+
+```
+bash run.sh mnist test 0
+```
+
+The second one tests the model accuracy when selecting neurons, i.e., $A_s$ and $A_r$ in the paper. PrivDNN get the selected neurons from the file *PrivDNN/PrivDNN/saved_models/[dataset]/selected_neurons.json*
+
+```
+bash run.sh mnist test 1
+```
 
 The *test* function's results are used in Table 1.
 
-```
-bash run.sh mnist test
-```
-
 #### select
 
-*select* is the most important function in PrivDNN. PrivDNN offers four kinds of algorithms to select critical neurons, i.e., random selection, greedy selection, pruning selection, and pruning+greedy selection. All algorithms are listed in **PrivDNN/PrivDNN/main.py**, and readers can configure which algorithm to use here. For datasets MNIST and EMNIST, we select an exact number of neurons in the first two layers; for GTSRB, CIFAR10, and Tiny ImageNet, we select a percentage of neurons in the first two layers. We also explain the parameters in the script.
+*select* is the most important function in PrivDNN. PrivDNN offers four kinds of algorithms to select critical neurons, i.e., random selection, greedy selection, pruning selection, and pruning+greedy selection. All algorithms are listed in *PrivDNN/PrivDNN/main.py*, and readers can configure which algorithm to use here. For datasets MNIST and EMNIST, we select an exact number of neurons in the first two layers; for GTSRB, CIFAR10, and Tiny ImageNet, we select a percentage of neurons in the first two layers. We also explain the parameters in the script.
 
 *select* function's results are used in Tables 2, 3, 4, 5 and Figures 4, 7.
 
@@ -101,7 +109,7 @@ bash run.sh mnist select
 
 #### recover
 
-*recover* function recovers the model with selected neurons or trains the model from scratch. PrivDNN will use the file **PrivDNN/saved_models/[dataset]/recover_selected_neurons.json** as the selected neurons.
+*recover* function recovers the model with selected neurons or trains the model from scratch. PrivDNN will use the file *PrivDNN/saved_models/[dataset]/recover_selected_neurons.json* as the selected neurons.
 
 *recover* function's results are used in Table 7 and Figure 7.
 
@@ -111,7 +119,7 @@ bash run.sh mnist recover
 
 #### inference
 
-*inference* function uses the C++ SEAL library to execute the cipher domain inference. PrivDNN will use the file **PrivDNN/saved_models/[dataset]/inference_encrypted_neurons.json** as the selected neurons. The running time of *inference* function highly depends on the dataset and selected neuron count. During this process, it may take up all CPU cores, generate large cipher files, and consume lots of memory (virtual memory). To test the function, readers can infer the MNIST dataset with selected neurons of {"1": [0], "2": [0]}, which should finish in five minutes.
+*inference* function uses the C++ SEAL library to execute the cipher domain inference. PrivDNN will use the file *PrivDNN/saved_models/[dataset]/inference_encrypted_neurons.json* as the selected neurons. The running time of *inference* function highly depends on the dataset and selected neuron count. During this process, it may take up all CPU cores, generate large cipher files, and consume lots of memory (virtual memory). To test the function, readers can infer the MNIST dataset with selected neurons of {"1": [0], "2": [0]}, which should finish in five minutes.
 
 To execute the inference experiments, readers need to compile the C++ codes to generate related libs.
 ```
@@ -136,6 +144,6 @@ bash run.sh clean
 
 #### others
 
-We have some Python programs in **PrivDNN/analyze_result** to statistic the results from previous experiments. The results of those programs are used in Tables 2, 3 and Figures 5, 7.
+We have some Python programs in *PrivDNN/analyze_result* to statistic the results from previous experiments. The results of those programs are used in Tables 2, 3 and Figures 5, 7.
 
 ### Citation

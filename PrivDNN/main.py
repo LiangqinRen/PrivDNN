@@ -32,7 +32,7 @@ if __name__ == "__main__":
         elif args.sub_work_mode == 1:
             worker.test_separated_model(args, logger, trained_model, dataloaders)
         else:
-            raise Exception("Unknown sub_work_mode")
+            raise Exception("unknown sub_work_mode")
     elif args.work_mode == utils.WorkMode.select_subset:
         trained_model = worker.load_trained_model(model_path)
 
