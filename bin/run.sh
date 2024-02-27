@@ -19,7 +19,7 @@ then
     python ../PrivDNN/main.py --dataset $dataset --work_mode 1 --train_dataset_percent 100 --top_k_accuracy ${top_k_accuracy[$dataset]}
 elif [[ $workmode == 'test' ]]
 then
-    if [[ $submode == '' ||  $submode == '0' ]]
+    if [[ $submode == '0' ]]
     then
         # test the model accuracy
         python ../PrivDNN/main.py --dataset $dataset --work_mode 2 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]}
@@ -40,8 +40,24 @@ then
     fi
 elif [[ $workmode == 'recover' ]]
 then
-    # recover models, the main file decides the action to execute
-    python ../PrivDNN/main.py --dataset $dataset --work_mode 4 --recover_dataset_count 1000  --top_k_accuracy ${top_k_accuracy[$dataset]}
+    if [[ $submode == '0' ]]
+    then
+        # train the model from scratch, recover_dataset_count decides the training sample count
+        python ../PrivDNN/main.py --dataset $dataset --work_mode 4 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --recover_dataset_count 1000
+    elif [[ $submode == '1' ]]
+    then
+        # recover model
+        python ../PrivDNN/main.py --dataset $dataset --work_mode 4 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --recover_dataset_count 1000 --accuracy_base ${accuracy[$dataset]}
+    elif [[ $submode == '2' ]]
+    then
+        # recover input of CIFAR10
+        # percent_factor decides the selected neurons json file, i.e, selected_neurons_{percent_factor}%.json
+        python ../PrivDNN/main.py --dataset $dataset --work_mode 4 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --percent_factor 50
+    elif [[ $submode == '3' ]]
+    then
+        # polymorphic obfuscation of CIFAR10
+        python ../PrivDNN/main.py --dataset $dataset --work_mode 4 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --percent_factor 50
+    fi
 elif [[ $workmode == 'inference' ]]
 then
     # inference the model in the cipher domain with the SEAL library
@@ -50,8 +66,7 @@ elif [[ [$dataset == 'clean'] || [$workmode == 'clean'] ]]
 then
     # clean cipher domain data files
     find ../seal/data -type f | xargs rm -rf
-elif [[ $workmode == '' ]]
-then
+else
     # debug
-    echo "Have a nice day!"
+    echo "Unrecognized parameters, have a nice day!"
 fi

@@ -1254,7 +1254,7 @@ def recover_input(args, logger, model, dataloaders, pictures_name: str) -> None:
             )
 
     results = []
-    for i in range(1000):
+    for i in tqdm(range(1000)):
         for imgs, _ in dataloaders["test"]:
             input_optimizer.zero_grad()
 
@@ -1270,15 +1270,13 @@ def recover_input(args, logger, model, dataloaders, pictures_name: str) -> None:
 
             results = [imgs.detach(), input.detach()]
 
-            if i % 100 == 0:
-                save_results(
-                    dataloaders,
-                    results,
-                    f"{args.percent_factor}_{i}_{pictures_name}",
-                    8,
-                )
-                output_tensor = torch.cat((results[0], results[1]))
-                torch.save(output_tensor, f"{args.percent_factor}.pt")
+        if i % 10 == 0:
+            save_results(
+                dataloaders,
+                results,
+                f"{args.percent_factor}_{i}_{pictures_name}",
+                8,
+            )
 
 
 class Square(nn.Module):
@@ -1329,7 +1327,7 @@ def recover_input_autoencoder(
     criterion = torch.nn.MSELoss()
     optimizer = optim.Adam(autoencoder.parameters())
 
-    for i in range(100):
+    for i in tqdm(range(100)):
         for imgs, _ in dataloaders["test"]:
             imgs = imgs.cuda()
 
@@ -1396,7 +1394,6 @@ def defense_weight_stealing(args, logger, model, dataloaders) -> None:
     retrain_parameters = []
     for i in range(len(obfuscated_layer)):
         if i in selected_neurons[2]:
-            logger.info(f"original {i}th neuron: {obfuscated_layer[i].weight}")
             obfuscated_layer[i].reset_parameters()
             retrain_parameters.extend(list(obfuscated_layer[i].parameters()))
 
@@ -1440,7 +1437,4 @@ def defense_weight_stealing(args, logger, model, dataloaders) -> None:
             )
 
     obfuscated_retrain_model = best_model
-    for i in range(len(obfuscated_layer)):
-        if i in selected_neurons[2]:
-            logger.info(f"retrain {i}th neuron: {obfuscated_layer[i].weight}")
     test_model(args, logger, obfuscated_retrain_model, dataloaders)

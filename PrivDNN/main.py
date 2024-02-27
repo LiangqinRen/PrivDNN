@@ -62,13 +62,19 @@ if __name__ == "__main__":
             raise Exception("unknown sub_work_mode")
     elif args.work_mode == utils.WorkMode.recover:
         trained_model = worker.load_trained_model(model_path)
-        worker.recover_model(args, logger, trained_model, dataloaders, model_path)
-        # worker.train_from_scratch(args, logger, dataloaders)
-        # worker.recover_input(args, logger, trained_model, dataloaders, "attack.png")
-        # worker.recover_input_autoencoder(
-        #    args, logger, trained_model, dataloaders, "attack.png"
-        # )
-        # worker.defense_weight_stealing(args, logger, trained_model, dataloaders)
+        if args.sub_work_mode == 0:
+            worker.train_from_scratch(args, logger, dataloaders)
+        elif args.sub_work_mode == 1:
+            worker.recover_model(args, logger, trained_model, dataloaders, model_path)
+        elif args.sub_work_mode == 2:
+            # only for CIFAR10
+            worker.recover_input(args, logger, trained_model, dataloaders, "attack.png")
+            """worker.recover_input_autoencoder(
+                args, logger, trained_model, dataloaders, "attack.png"
+            )"""
+        elif args.sub_work_mode == 3:
+            # only for CIFAR10
+            worker.defense_weight_stealing(args, logger, trained_model, dataloaders)
     elif args.work_mode == utils.WorkMode.fhe_inference:
         trained_model = worker.load_trained_model(model_path)
         trained_model.work_mode = models.WorkMode.cipher
