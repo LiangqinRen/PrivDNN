@@ -83,29 +83,25 @@ bash run.sh mnist train
 
 The *test* function is used to test the model accuracy. During the test, we use the top-5-accuracy for Tiny ImageNet and top-1-accuracy for others.
 
-The *test* function has 2 modes. The first one tests the model original accuracy, i.e., $A_o$ in the paper.
+The *test* function has 2 modes and the reader should only select one from them. Mode 0 tests the model original accuracy, i.e., $A_o$ in the paper. Mode 1 tests the model accuracy when selecting neurons, i.e., $A_s$ and $A_r$ in the paper. PrivDNN get the selected neurons from the file *PrivDNN/PrivDNN/saved_models/[dataset]/selected_neurons.json*
 
 ```
-bash run.sh mnist test 0
-```
-
-The second one tests the model accuracy when selecting neurons, i.e., $A_s$ and $A_r$ in the paper. PrivDNN get the selected neurons from the file *PrivDNN/PrivDNN/saved_models/[dataset]/selected_neurons.json*
-
-```
-bash run.sh mnist test 1
+bash run.sh mnist test 0/1
 ```
 
 The *test* function's results are used in Table 1.
 
 #### select
 
-*select* is the most important function in PrivDNN. PrivDNN offers four kinds of algorithms to select critical neurons, i.e., random selection, greedy selection, pruning selection, and pruning+greedy selection. All algorithms are listed in *PrivDNN/PrivDNN/main.py*, and readers can configure which algorithm to use here. For datasets MNIST and EMNIST, we select an exact number of neurons in the first two layers; for GTSRB, CIFAR10, and Tiny ImageNet, we select a percentage of neurons in the first two layers. We also explain the parameters in the script.
+The *select* function is the most important function in PrivDNN. PrivDNN offers four kinds of algorithms to select critical neurons, i.e., random selection, greedy selection, pruning selection, and pruning+greedy selection. For datasets MNIST and EMNIST, we select an exact number of neurons in the first two layers; for GTSRB, CIFAR10, and Tiny ImageNet, we select a percentage of neurons in the first two layers. We also explain the parameters in the script.
 
-*select* function's results are used in Tables 2, 3, 4, 5 and Figures 4, 7.
+The *select* function has 5 modes. The first 4 are corresponded to 4 algorithms. PrivDNN will save the selected neurons to the file *PrivDNN/PrivDNN/saved_models/[dataset]/selected_neurons.json*. Mode 5 will test all possible selections as the ground truth for MNIST and EMNIST, which takes about 3 days on our environment. Every algorithm has some specific approaches such as PFEC and FPGM, and we execute only one approach during the experiments to avoid the affection of cache, etc. We don't implement the random selection here because we have the ground truth of all possible selections of MNIST and EMNIST. We will explain this in later part.
 
 ```
-bash run.sh mnist select
+bash run.sh mnist select 0/1/2/3/4
 ```
+
+The *select* function's results are used in Tables 2, 3, 4, 5 and Figures 4, 7.
 
 #### recover
 

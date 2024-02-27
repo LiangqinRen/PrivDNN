@@ -30,20 +30,14 @@ then
     fi
 elif [[ $workmode == 'select' ]]
 then
-    if [[ $dataset == 'MNIST' ]]
+    if [[ $dataset == 'MNIST' || $dataset == 'EMNIST' ]]
     then
-        python ../PrivDNN/main.py --dataset $dataset --work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
-    elif [[ $dataset == 'EMNIST' ]]
-    then
-        python ../PrivDNN/main.py --dataset $dataset --work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
+        # select filters of exact numbers
+        python ../PrivDNN/main.py --dataset $dataset --work_mode 3 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --initial_layer_index 0 --encrypt_layers_count 2 --initial_layer_neurons 1 --add_factor 0 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
     else
-        pass
+        # select filters of a percentage
+        python ../PrivDNN/main.py --dataset $dataset --work_mode 3 --sub_work_mode $submode --top_k_accuracy ${top_k_accuracy[$dataset]} --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 5 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
     fi
-
-    # select filters, the main file decides the algorithm to use
-    
-
-    # python ../PrivDNN/main.py --dataset $dataset --work_mode 3 --initial_layer_index 0 --encrypt_layers_count 2 --percent_factor 50 --accuracy_base ${accuracy[$dataset]} --greedy_step 1
 elif [[ $workmode == 'recover' ]]
 then
     # recover models, the main file decides the action to execute
