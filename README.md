@@ -50,6 +50,9 @@ The model should be placed into the corresponding folder as follows:
 | TinyImageNet_128_128_100.pth                    | PrivDNN/saved_models/TinyImageNet |
 | MNIST.npy                    | PrivDNN/analyze_result/full_combinations |
 | EMNIST.npy                    | PrivDNN/analyze_result/full_combinations |
+| tiny-imagenet-200.tar                   | PrivDNN/data |
+
+At the same time, we should unpack the Tiny ImageNet data with the command *tar -xf tiny-imagenet-200.tar*.
 
 #### PyTorch environment
 
@@ -144,3 +147,5 @@ The *clean* function deletes the generated cipher parameters. PrivDNN will check
 We have some Python programs in *PrivDNN/analyze_result* to statistic the results from previous experiments, such as the random selection algorithm. The results of those programs are used in Tables 2, 3 and Figures 5, 7.
 
 ### Citation
+
+Liangqin Ren, Zeyan Liu, Fengjun Li, Kaitai Liang, Zhu Li, and Bo Luo. PrivDNN: A Secure Multi-Party Computation Framework for Deep Learning using Partial DNN Encryption. In the 24th Privacy Enhancing Technologies Symposium (PETS), Bristol, UK, 2024.

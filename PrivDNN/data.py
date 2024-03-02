@@ -209,7 +209,7 @@ def get_CIFAR10_dataloader(use_train_set_percent=100):
     )
 
     train_dataset = torchvision.datasets.CIFAR10(
-        root=data_folder, train=True, transform=train_transform, download=False
+        root=data_folder, train=True, transform=train_transform, download=True
     )
     train_dataset_count = int(len(train_dataset) * use_train_set_percent / 100)
     train_dataset, _ = random_split(
