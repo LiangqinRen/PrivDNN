@@ -15,22 +15,27 @@
 !/saved_models/MNIST/.gitkeep
 !/saved_models/MNIST/inference_encrypted_neurons.json
 !/saved_models/MNIST/recover_selected_neurons.json
+!/saved_models/MNIST/selected_neurons.json
 /saved_models/EMNIST/*
 !/saved_models/EMNIST/.gitkeep
 !/saved_models/EMNIST/inference_encrypted_neurons.json
 !/saved_models/EMNIST/recover_selected_neurons.json
+!/saved_models/EMNIST/selected_neurons.json
 /saved_models/GTSRB/*
 !/saved_models/GTSRB/.gitkeep
 !/saved_models/GTSRB/inference_encrypted_neurons.json
 !/saved_models/GTSRB/recover_selected_neurons.json
+!/saved_models/GTSRB/selected_neurons.json
 /saved_models/CIFAR10/*
 !/saved_models/CIFAR10/.gitkeep
 !/saved_models/CIFAR10/inference_encrypted_neurons.json
 !/saved_models/CIFAR10/recover_selected_neurons.json
+!/saved_models/CIFAR10/selected_neurons.json
 /saved_models/TinyImageNet/*
 !/saved_models/TinyImageNet/.gitkeep
 !/saved_models/TinyImageNet/inference_encrypted_neurons.json
 !/saved_models/TinyImageNet/recover_selected_neurons.json
+!/saved_models/TinyImageNet/selected_neurons.json
 
 /seal/data/
 !/seal/data/MNIST/.gitkeep

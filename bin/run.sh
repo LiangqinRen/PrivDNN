@@ -6,6 +6,8 @@ submode=$3
 
 # convert lowercase dataset to uppercase
 dataset=`echo $dataset | tr '[:lower:]' '[:upper:]'`
+# convert uppercase workmode to lowercase
+workmode=`echo $workmode | tr '[:upper:]' '[:lower:]'`
 
 declare -A accuracy
 accuracy=(["MNIST"]='99.36' ["EMNIST"]='93.08' ["GTSRB"]='93.51' ["CIFAR10"]='90.76' ["TINYIMAGENET"]='72.00')
