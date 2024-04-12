@@ -116,7 +116,7 @@ The *select* function's results are used in Tables 2, 3, 4, 5 and Figures 4, 7.
 
 The *recover* function recovers the model with selected neurons or trains it from scratch. It also includes experiments on recovering the input and generating polymorphic obfuscation.
 
-The *select* function has four modes. Mode 0 is training the model from scratch, i.e., $A_t$. Mode 1 is recovering the model, i.e., $A_{rec}$. Mode 2 is recovering the input. Mode 3 is generating polymorphic obfuscation.
+The *select* function has four modes. Mode 0 is training the model from scratch, i.e., $A_t$. Mode 1 is recovering the model, i.e., $A_{rec}$. Mode 2 is recovering the input. Mode 3 is generating polymorphic obfuscation. Mode 2 and 3 are only apply to CIFAR10.
 
 The *recover* function's results are used in Table 7 and Figures 7, 8, and 9.
 
