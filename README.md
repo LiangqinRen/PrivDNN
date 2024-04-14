@@ -4,7 +4,7 @@
 ---
 **Abstract**: In the past decade, we have witnessed an exponential growth of deep learning algorithms, models, platforms, and applications. While existing DL applications and Machine learning as a service (MLaaS) frameworks assume a fully trusted model, the need for privacy-preserving DNN evaluation arises. In a secure multi-party computation scenario, both the model and the dataset are considered proprietary, i.e., the model owner does not want to reveal the highly valuable DL model to the user, while the user does not wish to disclose their private data samples either. Conventional privacy-preserving deep learning solutions ask the users to send encrypted samples to the model owners, who must handle the heavy lifting of ciphertext-domain computation with homomorphic encryption. In this paper, we present a novel solution, namely, PrivDNN, which (1) offloads the computation to the user side by sharing an encrypted deep learning model with them, (2) significantly improves the efficiency of DNN evaluation using partial DNN encryption, (3) ensures model accuracy and model privacy using a core neuron selection and encryption scheme. Experimental results show that PrivDNN reduces privacy-preserving DNN inference time and memory requirement by up to 97% while maintaining model performance and security.
 
-![PrivDNN](pictures/privdnn.png)
+<img src="pictures/privdnn.png" alt="isolated" width="500"/>
 
 ---
 
@@ -13,6 +13,7 @@
 
 - [Description](#description)
 - [Getting Started](#getting-started)
+  - [hardware requirements](#hardware-requirements)
   - [pre-trained models](#pre-trained-models)
   - [PyTorch environment](#pytorch-environment)
   - [SEAL environment](#seal-environment)
@@ -33,6 +34,10 @@ This repository is the official repository of PrivDNN, a framework to accelerate
 ### Getting Started
 
 We implemented PrivDNN using Python 3.10.13, PyTorch 2.1.0, CUDA 12.1, C++ 11.4.0, and CMake 3.26.4. We execute all experiments on a desktop computer with Ubuntu 22.04 LTS running on AMD Ryzen 7 3700X 8-core CPU, NVIDIA 3090 GPU, and 64 GB memory. To support DNN evaluation in the ciphertext domain, we adopted [Microsoft SEAL](https://github.com/microsoft/SEAL.git) 4.1.1 library.
+
+#### hardware requirements
+
+The hardware requirements for the project vary depending on the specific experiments and parameters. In general, we recommend that readers utilize a decent NVIDIA GPU with sufficient GPU memory (at least **12 GB**) and an ample amount of system memory (at least **32 GB** for inference experiments). Even an entry-level GPU can suffice for running experiments on simpler datasets such as MNIST and EMNIST. However, readers may need to adjust certain parameters, such as reducing the batch size, when conducting experiments on more complex datasets.
 
 #### pre-trained models
 
@@ -112,6 +117,8 @@ bash run.sh mnist select 0/1/2/3/4
 
 The *select* function's results are used in Tables 2, 3, 4, 5 and Figures 4, 7.
 
+**Note**: The select function takes a long time, especially on complex datasets like GTSRB. For example, with the default parameters, selecting neurons on MNIST with mode 2 takes 22 seconds in our environment, but it takes about 3 hours on GTSRB.
+
 #### recover
 
 The *recover* function recovers the model with selected neurons or trains it from scratch. It also includes experiments on recovering the input and generating polymorphic obfuscation.
@@ -123,6 +130,8 @@ The *recover* function's results are used in Table 7 and Figures 7, 8, and 9.
 ```shell
 bash run.sh mnist recover 0/1/2/3
 ```
+
+**Note**: When executing mode 1 of the recover function, the program must get the selected neurons from *PrivDNN/saved_models/[dataset]/recover_selected_neurons.json*. By default, the file is an empty JSON file. Readers need to fill this file before running the experiments.
 
 #### inference
 
@@ -141,6 +150,8 @@ The *inference* function's results are used in Figures 5 and 7.
 ```shell
 bash run.sh mnist inference
 ```
+
+**Note**: When executing the inference function, the program must retrieve the chosen neurons from PrivDNN/saved_models/[dataset]/inference_encrypted_neurons.json. By default, this file is empty, requiring readers to fill it before running the experiments. It's worth noting that this experiment can be time-consuming as well, particularly during the initial run, as it involves generating cipher files. For instance, in our environment, selecting 1 neuron from both layers results in approximately 50 seconds of cipher inference on the MNIST dataset. However, the same operation on the CIFAR10 dataset, when selecting 50% of neurons from both layers, can take up to 8 hours. Readers can find more information from Figure 7 from the paper.
 
 #### clean
 
