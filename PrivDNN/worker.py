@@ -2,6 +2,7 @@ import data
 import utils
 import models
 
+import os
 import torch
 import copy
 import json
@@ -45,6 +46,12 @@ def save_selected_neurons(dataloaders, selected_neurons, file_name=None):
 def load_selected_neurons(dataloaders, file_name=None):
     path = f"../saved_models/{dataloaders['name']}/"
     path += file_name if file_name else "selected_neurons.json"
+
+    if not os.path.isfile(path):
+        print(
+            "Can't find file {path}, run the selection function to get selected neurons first!"
+        )
+        quit()
 
     selected_neurons = {}
     with open(path, "r") as convert_file:
